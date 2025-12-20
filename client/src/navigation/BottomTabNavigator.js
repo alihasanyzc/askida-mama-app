@@ -7,6 +7,9 @@ import { COLORS, FONT_SIZES } from '../constants';
 // Screens
 import DiscoverScreen from '../screens/DiscoverScreen';
 import CreatePostScreen from '../screens/CreatePostScreen';
+import UserProfileScreen from '../screens/UserProfileScreen';
+import SearchScreen from '../screens/SearchScreen';
+import FollowersScreen from '../screens/FollowersScreen';
 import MapScreen from '../screens/MapScreen';
 import ChatbotScreen from '../screens/ChatbotScreen';
 import AnnouncementScreen from '../screens/AnnouncementScreen';
@@ -33,6 +36,18 @@ const DiscoverStack = () => {
     <Stack.Navigator screenOptions={{ headerShown: false }}>
       <Stack.Screen name="DiscoverMain" component={DiscoverScreen} />
       <Stack.Screen name="CreatePost" component={CreatePostScreen} />
+      <Stack.Screen name="Search" component={SearchScreen} />
+      <Stack.Screen name="UserProfile" component={UserProfileScreen} />
+      <Stack.Screen name="Followers" component={FollowersScreen} />
+    </Stack.Navigator>
+  );
+};
+
+// Profil Stack Navigator (kendi profilimiz - boş)
+const ProfileStack = () => {
+  return (
+    <Stack.Navigator screenOptions={{ headerShown: false }}>
+      <Stack.Screen name="ProfileMain" component={ProfileScreen} />
     </Stack.Navigator>
   );
 };
@@ -87,7 +102,7 @@ const BottomTabNavigator = () => {
       />
       <Tab.Screen
         name="Profil"
-        component={ProfileScreen}
+        component={ProfileStack}
         options={{
           tabBarIcon: ({ focused }) => (
             <TabBarIcon icon="👤" focused={focused} />

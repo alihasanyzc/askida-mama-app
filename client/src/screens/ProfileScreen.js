@@ -7,8 +7,9 @@ const ProfileScreen = () => {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.content}>
-        <Text style={styles.title}>Profil</Text>
-        <Text style={styles.subtitle}>Hesap bilgileriniz</Text>
+        <Text style={styles.emoji}>👤</Text>
+        <Text style={styles.title}>Profilim</Text>
+        <Text style={styles.subtitle}>Kendi profil sayfanız yakında burada olacak</Text>
       </View>
     </SafeAreaView>
   );
@@ -23,16 +24,22 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    paddingHorizontal: SPACING.xl,
+  },
+  emoji: {
+    fontSize: 80,
+    marginBottom: SPACING.lg,
   },
   title: {
     fontSize: FONT_SIZES.xxl,
-    fontWeight: 'bold',
+    fontWeight: '700',
     color: COLORS.secondary,
+    marginBottom: SPACING.sm,
   },
   subtitle: {
     fontSize: FONT_SIZES.md,
     color: COLORS.gray,
-    marginTop: SPACING.sm,
+    textAlign: 'center',
   },
 });
 

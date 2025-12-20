@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef } from 'react';
 import {
   View,
   Text,
@@ -9,6 +9,8 @@ import {
   StatusBar,
   Image,
   Alert,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
@@ -16,21 +18,21 @@ import { COLORS, SPACING, FONT_SIZES } from '../constants';
 
 const CreatePostScreen = ({ navigation }) => {
   const insets = useSafeAreaInsets();
-  const [selectedCategory, setSelectedCategory] = useState('');
+  const scrollViewRef = useRef(null);
+  const contentInputRef = useRef(null);
+  
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
   const [image, setImage] = useState(null);
 
-  const categories = ['Sağlık', 'Mama&Barınma', 'Yardım Hikayeleri'];
-
-  // Form validation - tüm alanlar dolu mu?
+  // Form validation - resim ve metin zorunlu
   const isFormValid = useMemo(() => {
-    return selectedCategory !== '' && title.trim() !== '' && content.trim() !== '';
-  }, [selectedCategory, title, content]);
+    return image !== null && content.trim() !== '';
+  }, [image, content]);
 
   const handleCreate = () => {
     if (isFormValid) {
-      console.log('Post oluşturuldu:', { selectedCategory, title, content, image });
+      console.log('Post oluşturuldu:', { content, image });
       // API call yapılacak
       navigation.goBack();
     }
@@ -51,7 +53,7 @@ const CreatePostScreen = ({ navigation }) => {
 
     // Resim seç
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      mediaTypes: ['images'],
       allowsEditing: true,
       aspect: [16, 9],
       quality: 0.8,
@@ -64,6 +66,21 @@ const CreatePostScreen = ({ navigation }) => {
 
   const removeImage = () => {
     setImage(null);
+  };
+
+  const handleTitleSubmit = () => {
+    // Metin inputuna focus yap ve scroll et
+    setTimeout(() => {
+      contentInputRef.current?.focus();
+      scrollViewRef.current?.scrollToEnd({ animated: true });
+    }, 100);
+  };
+
+  const handleContentFocus = () => {
+    // Metin inputuna focus olduğunda scroll et
+    setTimeout(() => {
+      scrollViewRef.current?.scrollToEnd({ animated: true });
+    }, 300);
   };
 
   return (
@@ -86,127 +103,114 @@ const CreatePostScreen = ({ navigation }) => {
         <View style={styles.placeholder} />
       </View>
 
-      {/* Form Content */}
-      <ScrollView 
-        style={styles.scrollView}
-        showsVerticalScrollIndicator={false}
+      <KeyboardAvoidingView
+        style={styles.keyboardAvoid}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
       >
-        {/* Kategori Seçimi */}
-        <View style={styles.section}>
-          <Text style={styles.label}>
-            Kategori <Text style={styles.required}>*</Text>
-          </Text>
-          <View style={styles.categoryContainer}>
-            {categories.map((category) => (
-              <TouchableOpacity
-                key={category}
-                style={[
-                  styles.categoryButton,
-                  selectedCategory === category && styles.categoryButtonActive,
-                ]}
-                onPress={() => setSelectedCategory(category)}
-              >
-                <Text
-                  style={[
-                    styles.categoryText,
-                    selectedCategory === category && styles.categoryTextActive,
-                  ]}
+        {/* Form Content */}
+        <ScrollView 
+          ref={scrollViewRef}
+          style={styles.scrollView}
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+        >
+          {/* Resim Yükleme */}
+          <View style={styles.section}>
+            <Text style={styles.label}>
+              Resim <Text style={styles.required}>*</Text>
+            </Text>
+            {image ? (
+              <View style={styles.imagePreviewContainer}>
+                <Image source={{ uri: image }} style={styles.imagePreview} />
+                <TouchableOpacity
+                  style={styles.removeImageButton}
+                  onPress={removeImage}
                 >
-                  {category}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        </View>
-
-        {/* Resim Yükleme */}
-        <View style={styles.section}>
-          <Text style={styles.label}>
-            Resim <Text style={styles.optional}>*</Text>
-          </Text>
-          {image ? (
-            <View style={styles.imagePreviewContainer}>
-              <Image source={{ uri: image }} style={styles.imagePreview} />
+                  <Text style={styles.removeImageIcon}>✕</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.changeImageButton}
+                  onPress={pickImage}
+                >
+                  <Text style={styles.changeImageText}>Resmi Değiştir</Text>
+                </TouchableOpacity>
+              </View>
+            ) : (
               <TouchableOpacity
-                style={styles.removeImageButton}
-                onPress={removeImage}
-              >
-                <Text style={styles.removeImageIcon}>✕</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.changeImageButton}
+                style={styles.imageUploadArea}
                 onPress={pickImage}
               >
-                <Text style={styles.changeImageText}>Resmi Değiştir</Text>
+                <View style={styles.imageIconContainer}>
+                  <Text style={styles.imageIcon}>🖼️</Text>
+                </View>
+                <Text style={styles.imageUploadText}>Resim Yükle</Text>
+                <Text style={styles.imageUploadSubtext}>Zorunlu</Text>
               </TouchableOpacity>
-            </View>
-          ) : (
-            <TouchableOpacity
-              style={styles.imageUploadArea}
-              onPress={pickImage}
-            >
-              <View style={styles.imageIconContainer}>
-                <Text style={styles.imageIcon}>🖼️</Text>
-              </View>
-              <Text style={styles.imageUploadText}>Resim Yükle</Text>
-            </TouchableOpacity>
-          )}
-        </View>
+            )}
+          </View>
 
-        {/* Başlık */}
-        <View style={styles.section}>
-          <Text style={styles.label}>
-            Başlık <Text style={styles.required}>*</Text>
-          </Text>
-          <TextInput
-            style={styles.input}
-            placeholder="Gönderi başlığı"
-            placeholderTextColor={COLORS.gray}
-            value={title}
-            onChangeText={setTitle}
-            maxLength={100}
-          />
-        </View>
+          {/* Başlık */}
+          <View style={styles.section}>
+            <Text style={styles.label}>
+              Başlık <Text style={styles.optional}>(opsiyonel)</Text>
+            </Text>
+            <TextInput
+              style={styles.input}
+              placeholder="Gönderi başlığı (opsiyonel)"
+              placeholderTextColor={COLORS.gray}
+              value={title}
+              onChangeText={setTitle}
+              maxLength={100}
+              returnKeyType="next"
+              onSubmitEditing={handleTitleSubmit}
+              blurOnSubmit={false}
+            />
+          </View>
 
-        {/* İçerik */}
-        <View style={styles.section}>
-          <Text style={styles.label}>
-            Metin <Text style={styles.required}>*</Text>
-          </Text>
-          <TextInput
-            style={[styles.input, styles.textArea]}
-            placeholder="Gönderi içeriği"
-            placeholderTextColor={COLORS.gray}
-            value={content}
-            onChangeText={setContent}
-            multiline
-            numberOfLines={8}
-            textAlignVertical="top"
-          />
-        </View>
-      </ScrollView>
+          {/* İçerik */}
+          <View style={styles.section}>
+            <Text style={styles.label}>
+              Metin <Text style={styles.required}>*</Text>
+            </Text>
+            <TextInput
+              ref={contentInputRef}
+              style={[styles.input, styles.textArea]}
+              placeholder="Gönderi içeriği yazın..."
+              placeholderTextColor={COLORS.gray}
+              value={content}
+              onChangeText={setContent}
+              onFocus={handleContentFocus}
+              multiline
+              numberOfLines={8}
+              textAlignVertical="top"
+            />
+          </View>
+        </ScrollView>
 
-      {/* Oluştur Button - Fixed Bottom */}
-      <View style={[styles.footer, { paddingBottom: insets.bottom + SPACING.md }]}>
-        <TouchableOpacity
-          style={[
-            styles.createButton,
-            isFormValid && styles.createButtonActive,
-          ]}
-          onPress={handleCreate}
-          disabled={!isFormValid}
-          activeOpacity={0.8}
-        >
-          <Text
+        {/* Oluştur Button - Fixed Bottom */}
+        <View style={[styles.footer, { paddingBottom: insets.bottom + SPACING.md }]}>
+          <TouchableOpacity
             style={[
-              styles.createButtonText,
-              isFormValid && styles.createButtonTextActive,
+              styles.createButton,
+              isFormValid && styles.createButtonActive,
             ]}
+            onPress={handleCreate}
+            disabled={!isFormValid}
+            activeOpacity={0.8}
           >
-            Oluştur
-          </Text>
-        </TouchableOpacity>
-      </View>
+            <Text
+              style={[
+                styles.createButtonText,
+                isFormValid && styles.createButtonTextActive,
+              ]}
+            >
+              Oluştur
+            </Text>
+          </TouchableOpacity>
+        </View>
+      </KeyboardAvoidingView>
     </View>
   );
 };
@@ -244,8 +248,14 @@ const styles = StyleSheet.create({
   placeholder: {
     width: 40,
   },
+  keyboardAvoid: {
+    flex: 1,
+  },
   scrollView: {
     flex: 1,
+  },
+  scrollContent: {
+    paddingBottom: SPACING.xl + SPACING.lg,
   },
   section: {
     paddingHorizontal: SPACING.md,
@@ -263,32 +273,6 @@ const styles = StyleSheet.create({
   optional: {
     color: COLORS.gray,
     fontWeight: '400',
-  },
-  categoryContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: SPACING.sm,
-  },
-  categoryButton: {
-    paddingHorizontal: SPACING.lg,
-    paddingVertical: SPACING.sm + 2,
-    borderRadius: 8,
-    backgroundColor: COLORS.accentLight,
-    borderWidth: 1,
-    borderColor: COLORS.lightGray,
-  },
-  categoryButtonActive: {
-    backgroundColor: COLORS.primary,
-    borderColor: COLORS.primary,
-  },
-  categoryText: {
-    fontSize: FONT_SIZES.sm,
-    color: COLORS.secondary,
-    fontWeight: '500',
-  },
-  categoryTextActive: {
-    color: COLORS.white,
-    fontWeight: '600',
   },
   imageUploadArea: {
     height: 180,
@@ -316,6 +300,12 @@ const styles = StyleSheet.create({
     fontSize: FONT_SIZES.md,
     color: COLORS.gray,
     fontWeight: '500',
+  },
+  imageUploadSubtext: {
+    fontSize: FONT_SIZES.sm,
+    color: COLORS.danger,
+    fontWeight: '500',
+    marginTop: SPACING.xs,
   },
   imagePreviewContainer: {
     position: 'relative',

@@ -1,6 +1,8 @@
-import React, { useState } from 'react';
-import { View, Text, Image, StyleSheet, TouchableOpacity } from 'react-native';
+import React, { useState, useRef } from 'react';
+import { View, Text, Image, StyleSheet, TouchableOpacity, TouchableWithoutFeedback, Animated } from 'react-native';
 import { COLORS, SPACING, FONT_SIZES } from '../../constants';
+import CommentsModal from './CommentsModal';
+import LikesModal from './LikesModal';
 
 const BlogCard = ({ 
   author, 
@@ -9,34 +11,122 @@ const BlogCard = ({
   title, 
   description, 
   likes,
+  comments = 20, // Mock yorum sayısı
+  category,
   onPress,
   onLike,
-  onBookmark 
+  onBookmark,
+  onAuthorPress,
 }) => {
   const [isLiked, setIsLiked] = useState(false);
   const [isBookmarked, setIsBookmarked] = useState(false);
   const [likeCount, setLikeCount] = useState(likes);
+  const [likeAnimations, setLikeAnimations] = useState([]);
+  const [commentsModalVisible, setCommentsModalVisible] = useState(false);
+  const [likesModalVisible, setLikesModalVisible] = useState(false);
+  const lastTap = useRef(null);
 
   const handleLike = (e) => {
-    e.stopPropagation(); // Kartın onPress'ini tetiklememek için
+    e.stopPropagation();
     setIsLiked(!isLiked);
     setLikeCount(isLiked ? likeCount - 1 : likeCount + 1);
     onLike?.();
   };
 
+  const handleDoubleTap = (event) => {
+    const now = Date.now();
+    const DOUBLE_PRESS_DELAY = 300;
+    
+    if (lastTap.current && (now - lastTap.current) < DOUBLE_PRESS_DELAY) {
+      const { locationX, locationY } = event.nativeEvent;
+      
+      const newAnimation = {
+        id: Date.now(),
+        x: locationX,
+        y: locationY,
+        opacity: new Animated.Value(1),
+        translateY: new Animated.Value(0),
+        scale: new Animated.Value(0),
+      };
+      
+      setLikeAnimations(prev => [...prev, newAnimation]);
+      
+      if (!isLiked) {
+        setIsLiked(true);
+        setLikeCount(likeCount + 1);
+        onLike?.();
+      }
+      
+      Animated.parallel([
+        Animated.timing(newAnimation.opacity, {
+          toValue: 0,
+          duration: 800,
+          useNativeDriver: true,
+        }),
+        Animated.timing(newAnimation.translateY, {
+          toValue: -80,
+          duration: 800,
+          useNativeDriver: true,
+        }),
+        Animated.sequence([
+          Animated.timing(newAnimation.scale, {
+            toValue: 1,
+            duration: 200,
+            useNativeDriver: true,
+          }),
+          Animated.timing(newAnimation.scale, {
+            toValue: 0.8,
+            duration: 600,
+            useNativeDriver: true,
+          }),
+        ]),
+      ]).start(() => {
+        setLikeAnimations(prev => prev.filter(anim => anim.id !== newAnimation.id));
+      });
+    } else {
+      lastTap.current = now;
+    }
+  };
+
   const handleBookmark = (e) => {
-    e.stopPropagation(); // Kartın onPress'ini tetiklememek için
+    e.stopPropagation();
     setIsBookmarked(!isBookmarked);
     onBookmark?.();
   };
+
+  const handleOpenComments = (e) => {
+    e?.stopPropagation();
+    setCommentsModalVisible(true);
+  };
+
+  const handleCloseComments = () => {
+    setCommentsModalVisible(false);
+  };
+
+  const handleOpenLikes = (e) => {
+    e?.stopPropagation();
+    setLikesModalVisible(true);
+  };
+
+  const handleCloseLikes = () => {
+    setLikesModalVisible(false);
+  };
+
+  // Liked by listesi için mock avatarlar
+  const likedByAvatars = [
+    'https://i.pravatar.cc/150?img=2',
+    'https://i.pravatar.cc/150?img=3',
+    'https://i.pravatar.cc/150?img=4',
+  ];
+
   return (
-    <TouchableOpacity 
-      style={styles.card} 
-      onPress={onPress}
-      activeOpacity={0.9}
-    >
+    <View style={styles.card}>
       {/* Author Info */}
-      <View style={styles.header}>
+      <TouchableOpacity 
+        style={styles.header}
+        onPress={onAuthorPress}
+        activeOpacity={0.7}
+      >
         <Image 
           source={{ uri: author.avatar }} 
           style={styles.avatar}
@@ -45,78 +135,146 @@ const BlogCard = ({
           <Text style={styles.authorName}>{author.name}</Text>
           <Text style={styles.date}>{date}</Text>
         </View>
-      </View>
+      </TouchableOpacity>
 
-      {/* Blog Image with Bookmark */}
-      {image && (
-        <View style={styles.imageContainer}>
-          <Image 
-            source={{ uri: image }} 
-            style={styles.image}
-            resizeMode="cover"
-          />
-          {/* Bookmark Button - Sağ Üst */}
-          <TouchableOpacity 
-            style={styles.bookmarkButtonTop}
-            onPress={handleBookmark}
-            activeOpacity={0.7}
-          >
-            <Text style={[
-              styles.bookmarkIconTop,
-              isBookmarked && styles.bookmarkIconTopActive
-            ]}>
-              {isBookmarked ? '🔖' : '🏷️'}
-            </Text>
-          </TouchableOpacity>
-        </View>
-      )}
-
-      {/* Content */}
-      <View style={styles.content}>
-        <Text style={styles.title} numberOfLines={2}>
-          {title}
-        </Text>
-        <Text style={styles.description} numberOfLines={3}>
+      {/* Title/Caption */}
+      <View style={styles.captionContainer}>
+        <Text style={styles.caption} numberOfLines={3}>
           {description}
         </Text>
       </View>
 
-      {/* Footer - Sadece Like */}
+      {/* Blog Image */}
+      {image && (
+        <TouchableWithoutFeedback onPress={handleDoubleTap}>
+          <View style={styles.imageContainer}>
+            <Image 
+              source={{ uri: image }} 
+              style={styles.image}
+              resizeMode="cover"
+            />
+            
+            {/* Heart Animations */}
+            {likeAnimations.map((animation) => (
+              <Animated.View
+                key={animation.id}
+                style={[
+                  styles.heartAnimationContainer,
+                  {
+                    left: animation.x - 25,
+                    top: animation.y - 25,
+                    opacity: animation.opacity,
+                    transform: [
+                      { translateY: animation.translateY },
+                      { scale: animation.scale },
+                    ],
+                  },
+                ]}
+              >
+                <Text style={styles.heartAnimation}>❤️</Text>
+              </Animated.View>
+            ))}
+          </View>
+        </TouchableWithoutFeedback>
+      )}
+
+      {/* Footer - Likes and Comments */}
       <View style={styles.footer}>
+        {/* Liked by section */}
         <TouchableOpacity 
-          style={styles.likeButton}
-          onPress={handleLike}
+          style={styles.likedBySection}
+          onPress={handleOpenLikes}
           activeOpacity={0.7}
         >
-          <Text style={[
-            styles.likeIcon,
-            isLiked && styles.likeIconActive
-          ]}>
-            {isLiked ? '❤️' : '🤍'}
+          <View style={styles.avatarGroup}>
+            {likedByAvatars.map((avatar, index) => (
+              <Image
+                key={index}
+                source={{ uri: avatar }}
+                style={[styles.likedByAvatar, { marginLeft: index > 0 ? -8 : 0 }]}
+              />
+            ))}
+          </View>
+          <Text style={styles.likedByText}>
+            Liked by <Text style={styles.likedByName}>rebecca_jones</Text> and{' '}
+            <Text style={styles.likedByName}>{likeCount - 1} others</Text>
           </Text>
-          <Text style={styles.likeCount}>{likeCount}</Text>
+        </TouchableOpacity>
+
+        {/* Action buttons */}
+        <View style={styles.actionsRow}>
+          <View style={styles.leftActions}>
+            <TouchableOpacity 
+              style={styles.actionButton}
+              onPress={handleLike}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.actionIcon}>
+                {isLiked ? '❤️' : '🤍'}
+              </Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity 
+              style={styles.actionButton}
+              onPress={handleOpenComments}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.actionIcon}>💬</Text>
+            </TouchableOpacity>
+          </View>
+          
+          <TouchableOpacity 
+            style={styles.actionButton}
+            onPress={handleBookmark}
+            activeOpacity={0.7}
+          >
+            <Text style={styles.actionIcon}>
+              {isBookmarked ? '🔖' : '🏷️'}
+            </Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* Comments preview */}
+        <TouchableOpacity 
+          style={styles.commentsSection}
+          onPress={handleOpenComments}
+          activeOpacity={0.7}
+        >
+          <Text style={styles.viewComments}>View all {comments} comments</Text>
+          <Text style={styles.commentPreview}>
+            <Text style={styles.commentUsername}>drkhensick_hh</Text> Very nice
+          </Text>
         </TouchableOpacity>
       </View>
-    </TouchableOpacity>
+
+      {/* Comments Modal */}
+      <CommentsModal
+        visible={commentsModalVisible}
+        onClose={handleCloseComments}
+        postAuthor={author}
+        category={category}
+        postTitle={title}
+      />
+
+      {/* Likes Modal */}
+      <LikesModal
+        visible={likesModalVisible}
+        onClose={handleCloseLikes}
+      />
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
   card: {
     backgroundColor: COLORS.white,
-    borderRadius: 12,
-    marginHorizontal: SPACING.md,
-    marginBottom: SPACING.md,
-    shadowColor: COLORS.black,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    marginBottom: SPACING.lg,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: SPACING.md,
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.sm,
   },
   avatar: {
     width: 40,
@@ -134,77 +292,98 @@ const styles = StyleSheet.create({
     color: COLORS.secondary,
   },
   date: {
-    fontSize: FONT_SIZES.sm,
+    fontSize: FONT_SIZES.xs,
     color: COLORS.gray,
     marginTop: 2,
+  },
+  captionContainer: {
+    paddingHorizontal: SPACING.md,
+    paddingBottom: SPACING.sm,
+  },
+  caption: {
+    fontSize: FONT_SIZES.sm,
+    color: COLORS.secondary,
+    lineHeight: 18,
   },
   imageContainer: {
     position: 'relative',
     width: '100%',
-    height: 200,
+    height: 400,
+    backgroundColor: COLORS.lightGray,
   },
   image: {
     width: '100%',
-    height: 200,
-    backgroundColor: COLORS.lightGray,
+    height: '100%',
   },
-  bookmarkButtonTop: {
+  heartAnimationContainer: {
     position: 'absolute',
-    top: SPACING.sm,
-    right: SPACING.sm,
-    backgroundColor: COLORS.white,
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 50,
+    height: 50,
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: COLORS.black,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 4,
+    zIndex: 100,
   },
-  bookmarkIconTop: {
-    fontSize: 20,
-  },
-  bookmarkIconTopActive: {
-    fontSize: 22,
-  },
-  content: {
-    padding: SPACING.md,
-  },
-  title: {
-    fontSize: FONT_SIZES.lg,
-    fontWeight: '700',
-    color: COLORS.secondary,
-    marginBottom: SPACING.sm,
-  },
-  description: {
-    fontSize: FONT_SIZES.md,
-    color: COLORS.darkGray,
-    lineHeight: 20,
+  heartAnimation: {
+    fontSize: 50,
   },
   footer: {
-    flexDirection: 'row',
-    alignItems: 'center',
     paddingHorizontal: SPACING.md,
-    paddingBottom: SPACING.md,
+    paddingVertical: SPACING.sm,
   },
-  likeButton: {
+  likedBySection: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: SPACING.xs,
+    marginBottom: SPACING.sm,
   },
-  likeIcon: {
-    fontSize: 22,
-    marginRight: SPACING.xs,
+  avatarGroup: {
+    flexDirection: 'row',
+    marginRight: SPACING.sm,
   },
-  likeIconActive: {
+  likedByAvatar: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: COLORS.white,
+  },
+  likedByText: {
+    fontSize: FONT_SIZES.xs,
+    color: COLORS.secondary,
+    flex: 1,
+  },
+  likedByName: {
+    fontWeight: '600',
+  },
+  actionsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: SPACING.sm,
+  },
+  leftActions: {
+    flexDirection: 'row',
+    gap: SPACING.md,
+  },
+  actionButton: {
+    padding: SPACING.xs,
+  },
+  actionIcon: {
     fontSize: 24,
   },
-  likeCount: {
-    fontSize: FONT_SIZES.md,
+  commentsSection: {
+    gap: SPACING.xs,
+    paddingVertical: SPACING.xs,
+  },
+  viewComments: {
+    fontSize: FONT_SIZES.xs,
+    color: COLORS.gray,
+    marginBottom: SPACING.xs,
+  },
+  commentPreview: {
+    fontSize: FONT_SIZES.xs,
     color: COLORS.secondary,
+  },
+  commentUsername: {
     fontWeight: '600',
   },
 });
