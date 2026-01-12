@@ -14,6 +14,9 @@ import MapScreen from '../screens/MapScreen';
 import ChatbotScreen from '../screens/ChatbotScreen';
 import AnnouncementScreen from '../screens/AnnouncementScreen';
 import ProfileScreen from '../screens/ProfileScreen';
+import DonationScreen from '../screens/DonationScreen';
+import ProductDetailScreen from '../screens/ProductDetailScreen';
+import MedicalDonationScreen from '../screens/MedicalDonationScreen';
 
 const Stack = createStackNavigator();
 
@@ -39,6 +42,18 @@ const DiscoverStack = () => {
       <Stack.Screen name="Search" component={SearchScreen} />
       <Stack.Screen name="UserProfile" component={UserProfileScreen} />
       <Stack.Screen name="Followers" component={FollowersScreen} />
+    </Stack.Navigator>
+  );
+};
+
+// Harita Stack Navigator
+const MapStack = () => {
+  return (
+    <Stack.Navigator screenOptions={{ headerShown: false }}>
+      <Stack.Screen name="MapMain" component={MapScreen} />
+      <Stack.Screen name="Donation" component={DonationScreen} />
+      <Stack.Screen name="MedicalDonation" component={MedicalDonationScreen} />
+      <Stack.Screen name="ProductDetail" component={ProductDetailScreen} />
     </Stack.Navigator>
   );
 };
@@ -75,7 +90,7 @@ const BottomTabNavigator = () => {
       />
       <Tab.Screen
         name="Harita"
-        component={MapScreen}
+        component={MapStack}
         options={{
           tabBarIcon: ({ focused }) => (
             <TabBarIcon icon="🗺️" focused={focused} />

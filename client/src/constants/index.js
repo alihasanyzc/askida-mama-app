@@ -32,6 +32,10 @@ export const COLORS = {
   lightGray: '#E0E0E0',
   darkGray: '#757575',
   background: '#F8F8F8',
+  
+  // Text colors
+  text: '#2C2C2C',
+  textSecondary: '#757575',
 };
 
 // Spacing
