@@ -17,6 +17,9 @@ import ProfileScreen from '../screens/ProfileScreen';
 import DonationScreen from '../screens/DonationScreen';
 import ProductDetailScreen from '../screens/ProductDetailScreen';
 import MedicalDonationScreen from '../screens/MedicalDonationScreen';
+import BowlDetailScreen from '../screens/BowlDetailScreen';
+import QRScannerScreen from '../screens/QRScannerScreen';
+import EditAddressScreen from '../screens/EditAddressScreen';
 
 const Stack = createStackNavigator();
 
@@ -54,6 +57,9 @@ const MapStack = () => {
       <Stack.Screen name="Donation" component={DonationScreen} />
       <Stack.Screen name="MedicalDonation" component={MedicalDonationScreen} />
       <Stack.Screen name="ProductDetail" component={ProductDetailScreen} />
+      <Stack.Screen name="QRScanner" component={QRScannerScreen} />
+      <Stack.Screen name="BowlDetail" component={BowlDetailScreen} />
+      <Stack.Screen name="EditAddress" component={EditAddressScreen} />
     </Stack.Navigator>
   );
 };

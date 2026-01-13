@@ -62,6 +62,10 @@ const MapScreen = ({ navigation }) => {
     }, 300);
   };
 
+  const handleQRScan = () => {
+    navigation.navigate('QRScanner');
+  };
+
   // Mock marker data - Yeşil ve kırmızı marker'lar
   const markers = [
     {
@@ -173,6 +177,7 @@ const MapScreen = ({ navigation }) => {
       <TouchableOpacity
         style={[styles.qrButton, { top: insets.top + SPACING.md }]}
         activeOpacity={0.7}
+        onPress={handleQRScan}
       >
         <Text style={styles.qrIcon}>📱</Text>
       </TouchableOpacity>
