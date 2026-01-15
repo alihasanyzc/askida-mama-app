@@ -13,6 +13,8 @@ import FollowersScreen from '../screens/FollowersScreen';
 import MapScreen from '../screens/MapScreen';
 import ChatbotScreen from '../screens/ChatbotScreen';
 import AnnouncementScreen from '../screens/AnnouncementScreen';
+import CreateAnnouncementScreen from '../screens/CreateAnnouncementScreen';
+import AnnouncementDetailScreen from '../screens/AnnouncementDetailScreen';
 import ProfileScreen from '../screens/ProfileScreen';
 import DonationScreen from '../screens/DonationScreen';
 import ProductDetailScreen from '../screens/ProductDetailScreen';
@@ -60,6 +62,17 @@ const MapStack = () => {
       <Stack.Screen name="QRScanner" component={QRScannerScreen} />
       <Stack.Screen name="BowlDetail" component={BowlDetailScreen} />
       <Stack.Screen name="EditAddress" component={EditAddressScreen} />
+    </Stack.Navigator>
+  );
+};
+
+// İlan Stack Navigator
+const AnnouncementStack = () => {
+  return (
+    <Stack.Navigator screenOptions={{ headerShown: false }}>
+      <Stack.Screen name="AnnouncementMain" component={AnnouncementScreen} />
+      <Stack.Screen name="CreateAnnouncement" component={CreateAnnouncementScreen} />
+      <Stack.Screen name="AnnouncementDetail" component={AnnouncementDetailScreen} />
     </Stack.Navigator>
   );
 };
@@ -114,7 +127,7 @@ const BottomTabNavigator = () => {
       />
       <Tab.Screen
         name="İlan"
-        component={AnnouncementScreen}
+        component={AnnouncementStack}
         options={{
           tabBarIcon: ({ focused }) => (
             <TabBarIcon icon="📢" focused={focused} />
