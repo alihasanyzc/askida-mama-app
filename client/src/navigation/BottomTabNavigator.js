@@ -77,11 +77,12 @@ const AnnouncementStack = () => {
   );
 };
 
-// Profil Stack Navigator (kendi profilimiz - boş)
+// Profil Stack Navigator (kendi profilimiz)
 const ProfileStack = () => {
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
       <Stack.Screen name="ProfileMain" component={ProfileScreen} />
+      <Stack.Screen name="Followers" component={FollowersScreen} />
     </Stack.Navigator>
   );
 };
