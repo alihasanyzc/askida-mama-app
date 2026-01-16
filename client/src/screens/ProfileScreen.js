@@ -10,12 +10,15 @@ import {
   Dimensions,
   ImageBackground,
   Animated,
+  Modal,
+  TouchableWithoutFeedback,
+  PanResponder,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { COLORS, SPACING, FONT_SIZES } from '../constants';
 
-const { width } = Dimensions.get('window');
+const { width, height } = Dimensions.get('window');
 
 // Modern gradyan progress bar componenti
 const GradientProgress = ({ current, goal, label, colors }) => {
@@ -61,6 +64,8 @@ const GradientProgress = ({ current, goal, label, colors }) => {
 const ProfileScreen = ({ navigation }) => {
   const insets = useSafeAreaInsets();
   const [activeTab, setActiveTab] = useState('blogs');
+  const [drawerVisible, setDrawerVisible] = useState(false);
+  const drawerAnim = useRef(new Animated.Value(width)).current;
   
   // Kendi profil bilgilerimiz (mock data)
   const user = {
@@ -99,8 +104,106 @@ const ProfileScreen = ({ navigation }) => {
   // Cover photo - rastgele hayvan temalı
   const coverPhoto = 'https://images.unsplash.com/photo-1450778869180-41d0601e046e?w=800';
 
+  // Drawer açma/kapama fonksiyonları
+  const openDrawer = () => {
+    setDrawerVisible(true);
+    Animated.spring(drawerAnim, {
+      toValue: 0,
+      useNativeDriver: true,
+      tension: 50,
+      friction: 8,
+    }).start();
+  };
+
+  const closeDrawer = () => {
+    Animated.timing(drawerAnim, {
+      toValue: width,
+      duration: 250,
+      useNativeDriver: true,
+    }).start(() => {
+      setDrawerVisible(false);
+    });
+  };
+
+  // Menü seçenekleri
+  const menuItems = [
+    { 
+      id: 1, 
+      icon: '✏️', 
+      title: 'Profili Düzenle', 
+      action: () => navigation.navigate('EditProfile', { user })
+    },
+    { 
+      id: 2, 
+      icon: '🔒', 
+      title: 'Gizlilik', 
+      action: () => navigation.navigate('Privacy')
+    },
+    { 
+      id: 3, 
+      icon: '📄', 
+      title: 'Hakkında', 
+      action: () => navigation.navigate('About')
+    },
+    { 
+      id: 4, 
+      icon: '❓', 
+      title: 'Yardım', 
+      action: () => navigation.navigate('Help')
+    },
+    { 
+      id: 5, 
+      icon: '🚪', 
+      title: 'Çıkış Yap', 
+      action: () => console.log('Çıkış'), 
+      isDanger: true 
+    },
+  ];
+
+  // PanResponder - Sağdan sola kaydırma hareketi
+  const panResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => false,
+      onMoveShouldSetPanResponder: (evt, gestureState) => {
+        // Sağ kenardan başlayan ve sola doğru kaydırma
+        const { dx, moveX } = gestureState;
+        return moveX > width - 50 && dx < -10;
+      },
+      onPanResponderMove: (evt, gestureState) => {
+        const { dx } = gestureState;
+        if (dx < 0) {
+          // Sola kaydırma - drawer açılıyor
+          const newValue = Math.max(0, width + dx);
+          drawerAnim.setValue(newValue);
+        }
+      },
+      onPanResponderRelease: (evt, gestureState) => {
+        const { dx, vx } = gestureState;
+        
+        // Hızlı kaydırma veya yarıdan fazla kaydırma
+        if (vx < -0.5 || dx < -width * 0.3) {
+          // Drawer'ı aç
+          setDrawerVisible(true);
+          Animated.spring(drawerAnim, {
+            toValue: 0,
+            useNativeDriver: true,
+            tension: 50,
+            friction: 8,
+          }).start();
+        } else {
+          // Drawer'ı kapat
+          Animated.timing(drawerAnim, {
+            toValue: width,
+            duration: 200,
+            useNativeDriver: true,
+          }).start();
+        }
+      },
+    })
+  ).current;
+
   return (
-    <View style={styles.container}>
+    <View style={styles.container} {...panResponder.panHandlers}>
       <StatusBar
         barStyle="light-content"
         backgroundColor="transparent"
@@ -309,6 +412,87 @@ const ProfileScreen = ({ navigation }) => {
           </View>
         )}
       </ScrollView>
+
+      {/* Drawer Menu Modal */}
+      <Modal
+        visible={drawerVisible}
+        transparent={true}
+        animationType="none"
+        onRequestClose={closeDrawer}
+      >
+        <TouchableWithoutFeedback onPress={closeDrawer}>
+          <View style={styles.drawerOverlay}>
+            <TouchableWithoutFeedback>
+              <Animated.View
+                style={[
+                  styles.drawerContent,
+                  {
+                    transform: [{ translateX: drawerAnim }],
+                  },
+                ]}
+              >
+                {/* Drawer Header */}
+                <View style={[styles.drawerHeader, { paddingTop: insets.top + SPACING.md }]}>
+                  <View style={styles.drawerUserInfo}>
+                    <Image
+                      source={{ uri: user.avatar }}
+                      style={styles.drawerAvatar}
+                    />
+                    <View style={styles.drawerUserText}>
+                      <Text style={styles.drawerUserName}>{user.name}</Text>
+                      <Text style={styles.drawerUserEmail}>@{user.username}</Text>
+                    </View>
+                  </View>
+                  <TouchableOpacity
+                    style={styles.closeDrawerButton}
+                    onPress={closeDrawer}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={styles.closeDrawerIcon}>✕</Text>
+                  </TouchableOpacity>
+                </View>
+
+                {/* Drawer Menu Items */}
+                <ScrollView
+                  style={styles.drawerMenu}
+                  showsVerticalScrollIndicator={false}
+                >
+                  {menuItems.map((item) => (
+                    <TouchableOpacity
+                      key={item.id}
+                      style={[
+                        styles.drawerMenuItem,
+                        item.isDanger && styles.drawerMenuItemDanger,
+                      ]}
+                      onPress={() => {
+                        closeDrawer();
+                        setTimeout(() => item.action(), 300);
+                      }}
+                      activeOpacity={0.7}
+                    >
+                      <Text style={styles.drawerMenuIcon}>{item.icon}</Text>
+                      <Text
+                        style={[
+                          styles.drawerMenuText,
+                          item.isDanger && styles.drawerMenuTextDanger,
+                        ]}
+                      >
+                        {item.title}
+                      </Text>
+                      <Text style={styles.drawerMenuArrow}>›</Text>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+
+                {/* Drawer Footer */}
+                <View style={[styles.drawerFooter, { paddingBottom: insets.bottom + SPACING.md }]}>
+                  <Text style={styles.drawerFooterText}>Askıda Mama v1.0.0</Text>
+                </View>
+              </Animated.View>
+            </TouchableWithoutFeedback>
+          </View>
+        </TouchableWithoutFeedback>
+      </Modal>
     </View>
   );
 };
@@ -608,6 +792,120 @@ const styles = StyleSheet.create({
   },
   emptyStateText: {
     fontSize: FONT_SIZES.lg,
+    color: COLORS.gray,
+  },
+  // Drawer Styles
+  drawerOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+  },
+  drawerContent: {
+    position: 'absolute',
+    right: 0,
+    top: 0,
+    bottom: 0,
+    width: width * 0.8,
+    maxWidth: 320,
+    backgroundColor: COLORS.white,
+    shadowColor: '#000',
+    shadowOffset: { width: -4, height: 0 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 10,
+  },
+  drawerHeader: {
+    backgroundColor: COLORS.primary,
+    paddingHorizontal: SPACING.lg,
+    paddingBottom: SPACING.lg,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.accentLight,
+  },
+  drawerUserInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: SPACING.sm,
+  },
+  drawerAvatar: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    marginRight: SPACING.md,
+    borderWidth: 3,
+    borderColor: COLORS.white,
+  },
+  drawerUserText: {
+    flex: 1,
+  },
+  drawerUserName: {
+    fontSize: FONT_SIZES.lg,
+    fontWeight: '700',
+    color: COLORS.white,
+    marginBottom: 4,
+  },
+  drawerUserEmail: {
+    fontSize: FONT_SIZES.sm,
+    color: COLORS.white,
+    opacity: 0.9,
+  },
+  closeDrawerButton: {
+    position: 'absolute',
+    top: SPACING.md,
+    right: SPACING.md,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  closeDrawerIcon: {
+    fontSize: 20,
+    color: COLORS.white,
+    fontWeight: '600',
+  },
+  drawerMenu: {
+    flex: 1,
+    paddingTop: SPACING.md,
+  },
+  drawerMenuItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: SPACING.md,
+    paddingHorizontal: SPACING.lg,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.accentLight,
+  },
+  drawerMenuItemDanger: {
+    backgroundColor: '#FFF5F5',
+  },
+  drawerMenuIcon: {
+    fontSize: 24,
+    marginRight: SPACING.md,
+    width: 32,
+  },
+  drawerMenuText: {
+    flex: 1,
+    fontSize: FONT_SIZES.md,
+    fontWeight: '500',
+    color: COLORS.text,
+  },
+  drawerMenuTextDanger: {
+    color: '#E53E3E',
+  },
+  drawerMenuArrow: {
+    fontSize: 24,
+    color: COLORS.gray,
+    fontWeight: '300',
+  },
+  drawerFooter: {
+    paddingHorizontal: SPACING.lg,
+    paddingTop: SPACING.md,
+    borderTopWidth: 1,
+    borderTopColor: COLORS.accentLight,
+    alignItems: 'center',
+  },
+  drawerFooterText: {
+    fontSize: FONT_SIZES.sm,
     color: COLORS.gray,
   },
 });

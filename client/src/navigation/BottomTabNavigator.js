@@ -22,6 +22,10 @@ import MedicalDonationScreen from '../screens/MedicalDonationScreen';
 import BowlDetailScreen from '../screens/BowlDetailScreen';
 import QRScannerScreen from '../screens/QRScannerScreen';
 import EditAddressScreen from '../screens/EditAddressScreen';
+import EditProfileScreen from '../screens/EditProfileScreen';
+import PrivacyScreen from '../screens/PrivacyScreen';
+import AboutScreen from '../screens/AboutScreen';
+import HelpScreen from '../screens/HelpScreen';
 
 const Stack = createStackNavigator();
 
@@ -83,6 +87,10 @@ const ProfileStack = () => {
     <Stack.Navigator screenOptions={{ headerShown: false }}>
       <Stack.Screen name="ProfileMain" component={ProfileScreen} />
       <Stack.Screen name="Followers" component={FollowersScreen} />
+      <Stack.Screen name="EditProfile" component={EditProfileScreen} />
+      <Stack.Screen name="Privacy" component={PrivacyScreen} />
+      <Stack.Screen name="About" component={AboutScreen} />
+      <Stack.Screen name="Help" component={HelpScreen} />
     </Stack.Navigator>
   );
 };
