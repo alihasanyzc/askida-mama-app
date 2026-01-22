@@ -26,6 +26,8 @@ import EditProfileScreen from '../screens/EditProfileScreen';
 import PrivacyScreen from '../screens/PrivacyScreen';
 import AboutScreen from '../screens/AboutScreen';
 import HelpScreen from '../screens/HelpScreen';
+import PaymentScreen from '../screens/PaymentScreen';
+import ClinicDetailScreen from '../screens/ClinicDetailScreen';
 
 const Stack = createStackNavigator();
 
@@ -66,6 +68,8 @@ const MapStack = () => {
       <Stack.Screen name="QRScanner" component={QRScannerScreen} />
       <Stack.Screen name="BowlDetail" component={BowlDetailScreen} />
       <Stack.Screen name="EditAddress" component={EditAddressScreen} />
+      <Stack.Screen name="Payment" component={PaymentScreen} />
+      <Stack.Screen name="ClinicDetail" component={ClinicDetailScreen} />
     </Stack.Navigator>
   );
 };

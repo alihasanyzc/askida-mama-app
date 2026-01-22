@@ -374,19 +374,19 @@ const ProfileScreen = ({ navigation }) => {
             style={[styles.tab, activeTab === 'blogs' && styles.tabActive]}
             onPress={() => setActiveTab('blogs')}
           >
-            <Text style={styles.tabIcon}>📝</Text>
-            <Text style={[styles.tabText, activeTab === 'blogs' && styles.tabTextActive]}>
-              Postlar
-            </Text>
+            <Text style={[styles.tabIcon, activeTab === 'blogs' && styles.tabIconActive]}>📝</Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={[styles.tab, activeTab === 'announcements' && styles.tabActive]}
             onPress={() => setActiveTab('announcements')}
           >
-            <Text style={styles.tabIcon}>🏷️</Text>
-            <Text style={[styles.tabText, activeTab === 'announcements' && styles.tabTextActive]}>
-              İlanlar
-            </Text>
+            <Text style={[styles.tabIcon, activeTab === 'announcements' && styles.tabIconActive]}>📢</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.tab, activeTab === 'saved' && styles.tabActive]}
+            onPress={() => setActiveTab('saved')}
+          >
+            <Text style={[styles.tabIcon, activeTab === 'saved' && styles.tabIconActive]}>🔖</Text>
           </TouchableOpacity>
         </View>
 
@@ -409,6 +409,14 @@ const ProfileScreen = ({ navigation }) => {
           <View style={styles.emptyState}>
             <Text style={styles.emptyStateIcon}>📢</Text>
             <Text style={styles.emptyStateText}>Henüz ilan yok</Text>
+          </View>
+        )}
+
+        {/* Saved Placeholder */}
+        {activeTab === 'saved' && (
+          <View style={styles.emptyState}>
+            <Text style={styles.emptyStateIcon}>🔖</Text>
+            <Text style={styles.emptyStateText}>Henüz kaydedilen içerik yok</Text>
           </View>
         )}
       </ScrollView>
@@ -740,7 +748,6 @@ const styles = StyleSheet.create({
   },
   tab: {
     flex: 1,
-    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: SPACING.md,
@@ -751,17 +758,11 @@ const styles = StyleSheet.create({
     borderBottomColor: COLORS.primary,
   },
   tabIcon: {
-    fontSize: 18,
-    marginRight: SPACING.xs,
+    fontSize: 28,
+    opacity: 0.5,
   },
-  tabText: {
-    fontSize: FONT_SIZES.md,
-    fontWeight: '500',
-    color: COLORS.gray,
-  },
-  tabTextActive: {
-    color: COLORS.primary,
-    fontWeight: '700',
+  tabIconActive: {
+    opacity: 1,
   },
   blogGrid: {
     flexDirection: 'row',

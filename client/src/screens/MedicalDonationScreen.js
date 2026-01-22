@@ -237,8 +237,8 @@ const MedicalDonationScreen = ({ navigation }) => {
   };
 
   const handleClinicPress = (clinic) => {
-    // Navigate to clinic detail or donation page
-    console.log('Klinik seçildi:', clinic);
+    // Navigate to clinic detail screen
+    navigation.navigate('ClinicDetail', { clinic });
   };
 
   const renderClinicCard = (clinic) => (

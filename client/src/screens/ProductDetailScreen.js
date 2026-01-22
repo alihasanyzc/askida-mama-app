@@ -31,9 +31,8 @@ const ProductDetailScreen = ({ route, navigation }) => {
   const totalPrice = product.price * quantity;
 
   const handleDonate = () => {
-    // Bağış işlemi
-    console.log('Bağış yapılıyor:', { product, quantity, totalPrice });
-    // Burada ödeme ekranına yönlendirme yapılabilir
+    // Ödeme ekranına yönlendirme
+    navigation.navigate('Payment', { amount: totalPrice });
   };
 
   return (
@@ -166,7 +165,9 @@ const ProductDetailScreen = ({ route, navigation }) => {
             onPress={handleDonate}
             activeOpacity={0.8}
           >
-            <Text style={styles.donateButtonText}>{totalPrice} ₺ Bağış Yap</Text>
+            <Text style={styles.donateButtonText}>
+              {totalPrice} ₺ Bağış Yap ({quantity} kg)
+            </Text>
           </TouchableOpacity>
 
           <View style={{ height: insets.bottom + SPACING.lg }} />

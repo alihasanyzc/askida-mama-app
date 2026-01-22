@@ -23,7 +23,7 @@ const BowlDetailScreen = ({ route, navigation }) => {
   const [selectedAmount, setSelectedAmount] = useState(null);
   const [customAmount, setCustomAmount] = useState('');
 
-  const amounts = [10, 25, 50, 100];
+  const amounts = [50, 100, 150, 200];
 
   const handleDonate = () => {
     setDonationModalVisible(true);
@@ -36,9 +36,11 @@ const BowlDetailScreen = ({ route, navigation }) => {
   };
 
   const handleConfirmDonation = () => {
-    const finalAmount = selectedAmount || customAmount;
-    console.log('Bağış yapıldı:', finalAmount, 'TL');
-    handleCloseDonationModal();
+    const finalAmount = selectedAmount || parseFloat(customAmount) || 0;
+    if (finalAmount > 0) {
+      handleCloseDonationModal();
+      navigation.navigate('Payment', { amount: finalAmount });
+    }
   };
 
   const handleAddressEdit = () => {
@@ -204,7 +206,7 @@ const BowlDetailScreen = ({ route, navigation }) => {
                       ]}
                       onPress={() => {
                         setSelectedAmount(amount);
-                        setCustomAmount('');
+                        setCustomAmount(amount.toString());
                       }}
                       activeOpacity={0.7}
                     >
