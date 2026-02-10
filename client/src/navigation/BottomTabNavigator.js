@@ -47,7 +47,7 @@ const TabBarIcon = ({ icon, focused }) => {
 // Keşfet Stack Navigator
 const DiscoverStack = () => {
   return (
-    <Stack.Navigator screenOptions={{ headerShown: false }}>
+    <Stack.Navigator screenOptions={{ headerShown: false}}>
       <Stack.Screen name="DiscoverMain" component={DiscoverScreen} />
       <Stack.Screen name="CreatePost" component={CreatePostScreen} />
       <Stack.Screen name="Search" component={SearchScreen} />

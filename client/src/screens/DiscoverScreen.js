@@ -263,17 +263,19 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   createIcon: {
-    width: 32,
-    height: 32,
+    width: 40,
+    height: 40,
     borderRadius: 8,
-    backgroundColor: COLORS.accentLight,
+    backgroundColor: COLORS.white,
     justifyContent: 'center',
     alignItems: 'center',
   },
   createIconText: {
-    fontSize: 24,
+    fontSize: 40,
     color: COLORS.primary,
     fontWeight: '300',
+    lineHeight: 40,
+    textAlign: 'center',
   },
   logoContainer: {
     flex: 1,
