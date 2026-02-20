@@ -17,7 +17,7 @@
  * - constants - renkler, spacing, fontlar
  * - BlogCard component - blog post kartlarını render eden component
  */
-import React, { useCallback, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useMemo, useRef } from 'react';
 import { 
   View, 
   Text, 
@@ -25,7 +25,6 @@ import {
   FlatList, 
   TouchableOpacity,
   StatusBar,
-  Animated,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Entypo } from '@expo/vector-icons';
@@ -38,27 +37,7 @@ import BlogCard from '../components/common/BlogCard';
  * ============================================================================
  * Bu bölümde sadece bu component'e özel sabitler tanımlanır.
  * Genel constants (COLORS, SPACING, vb.) constants klasöründe tutulur.
- * 
- * SCROLL_CONFIG: Scroll davranışı için ayarlar
- * - THRESHOLD: Scroll yönünü algılamak için minimum pixel farkı (5px)
- * - EVENT_THROTTLE: Scroll event'lerinin ne sıklıkla tetikleneceği (16ms = 60fps)
  */
-const SCROLL_CONFIG = {
-  THRESHOLD: 5,           // Scroll yönü algılama eşiği (pixel)
-  EVENT_THROTTLE: 16,     // Scroll event throttle (ms) - 60fps için
-};
-
-/**
- * ANIMATION_CONFIG: Header animasyonları için ayarlar
- * - HIDE_DURATION: Header'ın kaybolma animasyon süresi (ms)
- * - SHOW_TENSION: Spring animasyonunun gerilim değeri (yüksek = daha hızlı)
- * - SHOW_FRICTION: Spring animasyonunun sürtünme değeri (yüksek = daha yavaş)
- */
-const ANIMATION_CONFIG = {
-  HIDE_DURATION: 200,     // Header gizlenme animasyon süresi (ms)
-  SHOW_TENSION: 100,      // Spring animasyon gerilimi (drawer-like effect için)
-  SHOW_FRICTION: 8,       // Spring animasyon sürtünmesi
-};
 
 /**
  * HEADER_DIMENSIONS: Header bileşenlerinin boyutları
@@ -233,7 +212,7 @@ const MOCK_BLOGS = [
       description: 'Pire, kene ve iç parazitler sokak hayvanlarını nasıl etkiler ve toplum sağlığı için neden önemlidir?',
       likes: 689,
     },
-];
+  ];
 
 /**
  * ============================================================================
@@ -259,38 +238,16 @@ const DiscoverScreen = ({ navigation }) => {
   
   /**
    * --------------------------------------------------------------------------
-   * 4.2. ANIMATION REFS
+   * 4.2. REFS
    * --------------------------------------------------------------------------
-   * Animated API için ref'ler. Bu ref'ler animasyon değerlerini tutar.
-   * 
-   * scrollY: Header'ın görünürlüğünü kontrol eden animasyon değeri (0-1 arası)
-   *   - 0: Header görünür
-   *   - 1: Header gizli
-   * 
-   * scrollPosition: FlatList'in scroll pozisyonunu tutar (gelecekte kullanım için)
-   * 
-   * lastScrollY: Önceki scroll pozisyonunu tutar (scroll yönünü hesaplamak için)
-   * 
-   * flatListRef: FlatList'e erişim için ref (scrollToOffset için)
+   * flatListRef: FlatList'e erişim için ref (scrollToOffset için kullanılır)
+   * Logo'ya tıklandığında listenin en üstüne kaydırmak için gereklidir.
    */
-  const scrollY = useRef(new Animated.Value(0)).current;
-  const scrollPosition = useRef(new Animated.Value(0)).current;
-  const lastScrollY = useRef(0);
   const flatListRef = useRef(null);
-  
-  /**
-   * --------------------------------------------------------------------------
-   * 4.3. COMPONENT STATE
-   * --------------------------------------------------------------------------
-   * isScrollingDown: Scroll yönünü takip eder
-   *   - true: Kullanıcı yukarı scroll ediyor (header gizli)
-   *   - false: Kullanıcı aşağı scroll ediyor veya en üstte (header görünür)
-   */
-  const [isScrollingDown, setIsScrollingDown] = useState(false);
 
   /**
    * --------------------------------------------------------------------------
-   * 4.4. MEMOIZED DATA
+   * 4.3. MEMOIZED DATA
    * --------------------------------------------------------------------------
    * allBlogs: Blog listesini memoize eder
    * useMemo kullanılmasının nedeni: Her render'da yeni array oluşturulmasını önlemek
@@ -300,89 +257,16 @@ const DiscoverScreen = ({ navigation }) => {
 
   /**
    * ============================================================================
-   * OKUMA SIRASI: 5. BÖLÜM - EVENT HANDLERS VE HESAPLAMALAR
+   * OKUMA SIRASI: 5. BÖLÜM - EVENT HANDLERS
    * ============================================================================
    */
-  
-  /**
-   * --------------------------------------------------------------------------
-   * 5.1. HANDLE SCROLL - Scroll Event Handler
-   * --------------------------------------------------------------------------
-   * FlatList scroll event'lerini dinler ve header'ı gösterir/gizler.
-   * Instagram tarzı davranış: Yukarı scroll'da hızlı kaybolur, aşağı scroll'da yavaşça görünür.
-   * 
-   * ÇALIŞMA MANTIĞI:
-   * 1. Mevcut scroll pozisyonunu alır (currentScrollY)
-   * 2. Önceki pozisyonla karşılaştırarak scroll yönünü belirler (scrollDifference)
-   * 3. Scroll yönüne göre header'ı animasyonlu şekilde gösterir/gizler
-   * 
-   * @param {Object} event - Scroll event object (FlatList'ten gelen)
-   * @param {Object} event.nativeEvent.contentOffset.y - Mevcut scroll pozisyonu
-   * 
-   * useCallback kullanılmasının nedeni: Her render'da yeni fonksiyon oluşturulmasını önlemek
-   */
-  const handleScroll = useCallback((event) => {
-    // Mevcut scroll pozisyonunu al (FlatList'in contentOffset.y değeri)
-    const currentScrollY = event.nativeEvent.contentOffset.y;
-    
-    // Scroll yönünü hesapla: pozitif = aşağı, negatif = yukarı
-    const scrollDifference = currentScrollY - lastScrollY.current;
-    
-    // Scroll pozisyonunu güncelle (gelecekte kullanım için saklanır)
-    scrollPosition.setValue(currentScrollY);
-    
-    /**
-     * DURUM 1: YUKARI SCROLL (Header'ı gizle)
-     * Koşul: scrollDifference < -5px VE header şu anda görünür
-     * Animasyon: Hızlı timing animasyonu (200ms)
-     */
-    if (scrollDifference < -SCROLL_CONFIG.THRESHOLD && !isScrollingDown) {
-      setIsScrollingDown(true);  // State'i güncelle: artık yukarı scroll ediyoruz
-      Animated.timing(scrollY, {
-        toValue: 1,              // scrollY = 1 → header gizli
-        duration: ANIMATION_CONFIG.HIDE_DURATION,
-        useNativeDriver: true,   // Native driver kullan (daha performanslı)
-      }).start();
-    } 
-    /**
-     * DURUM 2: AŞAĞI SCROLL (Header'ı göster - drawer-like)
-     * Koşul: scrollDifference > 5px VE header şu anda gizli
-     * Animasyon: Yumuşak spring animasyonu (drawer gibi)
-     */
-    else if (scrollDifference > SCROLL_CONFIG.THRESHOLD && isScrollingDown) {
-      setIsScrollingDown(false); // State'i güncelle: artık aşağı scroll ediyoruz
-      Animated.spring(scrollY, {
-        toValue: 0,              // scrollY = 0 → header görünür
-        tension: ANIMATION_CONFIG.SHOW_TENSION,   // Spring gerilimi
-        friction: ANIMATION_CONFIG.SHOW_FRICTION, // Spring sürtünmesi
-        useNativeDriver: true,
-      }).start();
-    } 
-    /**
-     * DURUM 3: EN ÜSTTE (Header'ı her zaman göster)
-     * Koşul: currentScrollY <= 0 VE header şu anda gizli
-     * Kullanıcı en üste geldiğinde header otomatik görünür
-     */
-    else if (currentScrollY <= 0 && isScrollingDown) {
-      setIsScrollingDown(false);
-      Animated.spring(scrollY, {
-        toValue: 0,
-        tension: ANIMATION_CONFIG.SHOW_TENSION,
-        friction: ANIMATION_CONFIG.SHOW_FRICTION,
-        useNativeDriver: true,
-      }).start();
-    }
-    
-    // Son scroll pozisyonunu kaydet (bir sonraki scroll event'i için)
-    lastScrollY.current = currentScrollY;
-  }, [isScrollingDown, scrollY, scrollPosition]); // Dependencies: bu değerler değiştiğinde fonksiyon yeniden oluşturulur
 
   /**
    * --------------------------------------------------------------------------
-   * 5.2. HEADER HEIGHT - Header Yüksekliği Hesaplama
+   * 5.1. HEADER HEIGHT - Header Yüksekliği Hesaplama
    * --------------------------------------------------------------------------
    * Header'ın toplam yüksekliğini hesaplar (safe area + header bar + search bar).
-   * Bu değer animasyonlarda ve FlatList padding'inde kullanılır.
+   * Bu değer FlatList padding'inde kullanılır.
    * 
    * HESAPLAMA:
    * - Safe area top (iPhone notch için)
@@ -480,22 +364,22 @@ const DiscoverScreen = ({ navigation }) => {
      * user objesi içinde profil bilgileri gönderilir
      */
     navigation.navigate('UserProfile', {
-      user: {
+        user: {
         id: authorId,
-        name: item.author.name,
+          name: item.author.name,
         username,
-        avatar: item.author.avatar,
-        bio: 'Veteriner hekim 🩺 Sokak hayvanları için gönüllü 🐾',
-        stats: {
-          blogs: 18,
-          followers: 892,
-          following: 245,
+          avatar: item.author.avatar,
+          bio: 'Veteriner hekim 🩺 Sokak hayvanları için gönüllü 🐾',
+          stats: {
+            blogs: 18,
+            followers: 892,
+            following: 245,
           rank,
-        },
-        donations: {
-          food: { current: 850, goal: 2000 },
-          medical: { current: 2100, goal: 5000 },
-        },
+          },
+          donations: {
+            food: { current: 850, goal: 2000 },
+            medical: { current: 2100, goal: 5000 },
+          },
       },
     });
   }, [navigation]); // Dependency: navigation değiştiğinde fonksiyon yeniden oluşturulur
@@ -577,7 +461,7 @@ const DiscoverScreen = ({ navigation }) => {
    * Bu bölümde component'in görsel arayüzü (UI) tanımlanır.
    * Component'in return değeri burada oluşturulur.
    */
-  
+
   return (
     <View style={styles.container}>
       {/* 
@@ -597,33 +481,16 @@ const DiscoverScreen = ({ navigation }) => {
       
       {/* 
         --------------------------------------------------------------------------
-        7.2. ANIMATED HEADER CONTAINER
+        7.2. HEADER CONTAINER (Sabit)
         --------------------------------------------------------------------------
-        Header ve search bar'ı içeren animasyonlu container.
-        scrollY değerine göre yukarı/aşağı hareket eder.
-        
-        ANIMATION MANTIĞI:
-        - scrollY.interpolate: scrollY değerini (0-1) translateY değerine çevirir
-        - inputRange: [0, headerHeight] → scrollY'nin alabileceği değerler
-        - outputRange: [0, -headerHeight] → translateY'nin alacağı değerler
-          * scrollY = 0 → translateY = 0 (header görünür, normal pozisyon)
-          * scrollY = headerHeight → translateY = -headerHeight (header gizli, yukarı kaymış)
-        - extrapolate: 'clamp' → değerler sınırlar dışına çıkamaz
+        Header ve search bar'ı içeren sabit container.
+        Position absolute ile ekranın üstünde sabit durur.
       */}
-      <Animated.View
+      <View
         style={[
           styles.headerContainer,
           {
             paddingTop: insets.top + SPACING.xs,  // Safe area için üst padding
-            transform: [
-              {
-                translateY: scrollY.interpolate({
-                  inputRange: [0, headerHeight],
-                  outputRange: [0, -headerHeight],
-                  extrapolate: 'clamp',
-                }),
-              },
-            ],
           },
         ]}
       >
@@ -635,17 +502,17 @@ const DiscoverScreen = ({ navigation }) => {
         */}
         <View style={styles.header}>
           {/* + BUTONU: Yeni post oluşturma butonu */}
-          <TouchableOpacity 
-            style={styles.createButton}
-            onPress={() => navigation.navigate('CreatePost')}
+        <TouchableOpacity 
+          style={styles.createButton}
+          onPress={() => navigation.navigate('CreatePost')}
             activeOpacity={0.7}
             accessibilityLabel="Yeni post oluştur"
             accessibilityRole="button"
-          >
-            <View style={styles.createIcon}>
-              <Text style={styles.createIconText}>+</Text>
-            </View>
-          </TouchableOpacity>
+        >
+          <View style={styles.createIcon}>
+            <Text style={styles.createIconText}>+</Text>
+          </View>
+        </TouchableOpacity>
 
           {/* LOGO: Ana sayfaya dön butonu (tıklanabilir) */}
           <TouchableOpacity
@@ -657,8 +524,8 @@ const DiscoverScreen = ({ navigation }) => {
             testID="logo-button"
           >
             <View style={styles.logo} accessibilityLabel="Askıda Mama">
-              <Text style={styles.pawIcon}>🐾</Text>
-            </View>
+            <Text style={styles.pawIcon}>🐾</Text>
+          </View>
           </TouchableOpacity>
 
           {/* PLACEHOLDER: Sağ tarafta boş alan (dengeli görünüm için) */}
@@ -671,15 +538,15 @@ const DiscoverScreen = ({ navigation }) => {
           --------------------------------------------------------------------------
           Arama ekranına yönlendiren tıklanabilir arama çubuğu
         */}
-        <TouchableOpacity 
-          style={styles.searchContainer}
-          onPress={() => navigation.navigate('Search')}
-          activeOpacity={0.7}
+      <TouchableOpacity 
+        style={styles.searchContainer}
+        onPress={() => navigation.navigate('Search')}
+        activeOpacity={0.7}
           accessibilityLabel="Arama yap"
           accessibilityRole="button"
           testID="search-button"
-        >
-          <View style={styles.searchBar}>
+      >
+        <View style={styles.searchBar}>
             {/* Arama iconu (Entypo icon library'den) */}
             <Entypo 
               name="magnifying-glass" 
@@ -688,10 +555,10 @@ const DiscoverScreen = ({ navigation }) => {
               style={styles.searchIcon}
             />
             {/* Placeholder text */}
-            <Text style={styles.searchPlaceholder}>Ara</Text>
-          </View>
-        </TouchableOpacity>
-      </Animated.View>
+          <Text style={styles.searchPlaceholder}>Ara</Text>
+        </View>
+      </TouchableOpacity>
+      </View>
 
       {/* 
         --------------------------------------------------------------------------
@@ -704,12 +571,6 @@ const DiscoverScreen = ({ navigation }) => {
         - maxToRenderPerBatch: Her batch'te maksimum 5 item render et
         - windowSize: Render penceresi boyutu (viewport'un 10 katı)
         - removeClippedSubviews: Görünmeyen view'ları DOM'dan kaldır (memory tasarrufu)
-        - scrollEventThrottle: Scroll event'lerini throttle et (16ms = 60fps)
-        
-        SCROLL ANIMATION:
-        - onScroll: Animated.event ile scroll pozisyonunu scrollPosition'a bağlar
-        - listener: handleScroll fonksiyonunu çağırır (header animasyonu için)
-        - useNativeDriver: false (çünkü scrollPosition kullanılıyor, native driver desteklemiyor)
       */}
       <FlatList
         ref={flatListRef}                                    // Ref: scrollToOffset için
@@ -725,11 +586,6 @@ const DiscoverScreen = ({ navigation }) => {
         maxToRenderPerBatch={FLATLIST_CONFIG.MAX_TO_RENDER_PER_BATCH}
         windowSize={FLATLIST_CONFIG.WINDOW_SIZE}
         removeClippedSubviews={true}                         // Görünmeyen view'ları kaldır
-        onScroll={Animated.event(
-          [{ nativeEvent: { contentOffset: { y: scrollPosition } } }],  // Scroll pozisyonunu scrollPosition'a bağla
-          { useNativeDriver: false, listener: handleScroll }              // handleScroll'u listener olarak ekle
-        )}
-        scrollEventThrottle={SCROLL_CONFIG.EVENT_THROTTLE}   // Event throttle (16ms = 60fps)
         ListEmptyComponent={renderEmptyComponent}             // Boş liste component'i
         testID="blog-posts-list"                             // Test ID (testing için)
       />

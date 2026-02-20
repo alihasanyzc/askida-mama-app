@@ -17,8 +17,33 @@ const { width, height } = Dimensions.get('window');
 
 const BowlDetailScreen = ({ route, navigation }) => {
   const insets = useSafeAreaInsets();
-  const { bowl } = route.params;
-  const [selectedStatus, setSelectedStatus] = useState(bowl.status);
+  const { bowl } = route.params || {};
+  
+  // Güvenlik kontrolü - bowl yoksa varsayılan değerler kullan
+  if (!bowl) {
+    return (
+      <View style={[styles.container, { paddingTop: insets.top }]}>
+        <View style={styles.header}>
+          <TouchableOpacity
+            style={styles.backButton}
+            onPress={() => navigation.goBack()}
+            activeOpacity={0.7}
+          >
+            <Text style={styles.backIcon}>←</Text>
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Mama Kabı Detayı</Text>
+          <View style={styles.headerSpacer} />
+        </View>
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+          <Text style={{ fontSize: FONT_SIZES.lg, color: COLORS.textSecondary }}>
+            Mama kabı bilgisi bulunamadı.
+          </Text>
+        </View>
+      </View>
+    );
+  }
+  
+  const [selectedStatus, setSelectedStatus] = useState(bowl.status || 'empty');
   const [donationModalVisible, setDonationModalVisible] = useState(false);
   const [selectedAmount, setSelectedAmount] = useState(null);
   const [customAmount, setCustomAmount] = useState('');
@@ -51,18 +76,14 @@ const BowlDetailScreen = ({ route, navigation }) => {
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity
-          style={styles.backButton}
-          onPress={() => navigation.goBack()}
-          activeOpacity={0.7}
-        >
-          <Text style={styles.backIcon}>←</Text>
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Mama Kabı Detayı</Text>
-        <View style={styles.headerSpacer} />
-      </View>
+      {/* Back Button - Floating */}
+      <TouchableOpacity
+        style={[styles.backButton, { top: insets.top + SPACING.md }]}
+        onPress={() => navigation.goBack()}
+        activeOpacity={0.7}
+      >
+        <Text style={styles.backIcon}>←</Text>
+      </TouchableOpacity>
 
       {/* Top Section - Icon, Title, Status */}
       <View style={styles.topSection}>
@@ -72,13 +93,13 @@ const BowlDetailScreen = ({ route, navigation }) => {
             selectedStatus === 'full' ? styles.iconCircleGreen : styles.iconCircleRed
           ]}>
             <Text style={styles.iconText}>
-              {bowl.type === 'cat' ? '🐱' : '🐶'}
+              {bowl.type === 'cat' ? '🐱' : bowl.type === 'dog' ? '🐶' : '🥣'}
             </Text>
           </View>
         </View>
 
         <Text style={styles.bowlType}>
-          {bowl.type === 'cat' ? 'Kedi Mama Kabı' : 'Köpek Mama Kabı'}
+          {bowl.type === 'cat' ? 'Kedi Mama Kabı' : bowl.type === 'dog' ? 'Köpek Mama Kabı' : 'Mama Kabı'}
         </Text>
 
         <View style={styles.statusBadgeContainer}>
@@ -117,8 +138,8 @@ const BowlDetailScreen = ({ route, navigation }) => {
             <Text style={styles.locationIcon}>📍</Text>
           </View>
           <View style={styles.locationTextContainer}>
-            <Text style={styles.locationAddress}>{bowl.location}</Text>
-            <Text style={styles.locationNeighborhood}>{bowl.neighborhood}</Text>
+            <Text style={styles.locationAddress}>{bowl.location || 'Konum bilgisi mevcut değil'}</Text>
+            <Text style={styles.locationNeighborhood}>{bowl.neighborhood || ''}</Text>
           </View>
         </View>
 
@@ -305,39 +326,29 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: COLORS.white,
   },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: SPACING.md,
-    paddingVertical: SPACING.md,
-    backgroundColor: COLORS.white,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.lightGray,
-  },
   backButton: {
+    position: 'absolute',
+    left: SPACING.md,
     width: 40,
     height: 40,
     borderRadius: 20,
     backgroundColor: COLORS.lightGray,
     justifyContent: 'center',
     alignItems: 'center',
+    zIndex: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
   },
   backIcon: {
     fontSize: 24,
     color: COLORS.text,
   },
-  headerTitle: {
-    fontSize: FONT_SIZES.xl,
-    fontWeight: '700',
-    color: COLORS.text,
-  },
-  headerSpacer: {
-    width: 40,
-  },
   topSection: {
     alignItems: 'center',
-    paddingTop: SPACING.md,
+    paddingTop: SPACING.xl + SPACING.md, // Geri butonu için boşluk
     paddingBottom: SPACING.sm,
   },
   iconContainer: {

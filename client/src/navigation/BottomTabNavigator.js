@@ -1,8 +1,9 @@
 import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createStackNavigator } from '@react-navigation/stack';
-import { View, Text, StyleSheet } from 'react-native';
-import { COLORS, FONT_SIZES } from '../constants';
+import { View, StyleSheet } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import { COLORS } from '../constants';
 
 // Screens
 import DiscoverScreen from '../screens/DiscoverScreen';
@@ -33,13 +34,33 @@ const Stack = createStackNavigator();
 
 const Tab = createBottomTabNavigator();
 
-// Custom Tab Bar Icons
-const TabBarIcon = ({ icon, focused }) => {
+/**
+ * Icon size constants for bottom tab bar
+ * UI optimized sizes for better visual hierarchy
+ */
+const ICON_SIZES = {
+  ACTIVE: 26,    // Aktif tab icon boyutu (daha büyük, dikkat çekici)
+  INACTIVE: 24,  // Pasif tab icon boyutu (standart boyut)
+};
+
+/**
+ * Custom Tab Bar Icon Component
+ * 
+ * Senior developer standards: Clean, performant, and maintainable icon component.
+ * 
+ * @param {string} iconName - Ionicons icon name (e.g., "compass-outline")
+ * @param {boolean} focused - Whether the tab is focused/active
+ */
+const TabBarIcon = ({ iconName, focused }) => {
   return (
+    <View style={styles.iconWrapper}>
     <View style={[styles.iconContainer, focused && styles.iconContainerFocused]}>
-      <Text style={[styles.icon, focused && styles.iconFocused]}>
-        {icon}
-      </Text>
+        <Ionicons
+          name={iconName}
+          size={focused ? ICON_SIZES.ACTIVE : ICON_SIZES.INACTIVE}
+          color={focused ? COLORS.primary : COLORS.darkGray}
+        />
+      </View>
     </View>
   );
 };
@@ -106,8 +127,8 @@ const BottomTabNavigator = () => {
         headerShown: false,
         tabBarStyle: styles.tabBar,
         tabBarActiveTintColor: COLORS.primary,
-        tabBarInactiveTintColor: COLORS.gray,
-        tabBarLabelStyle: styles.tabBarLabel,
+        tabBarInactiveTintColor: COLORS.darkGray, // Daha koyu gri (UX iyileştirmesi)
+        tabBarShowLabel: false, // Tüm tab label'larını gizle (sadece iconlar görünsün)
         tabBarHideOnKeyboard: true,
       }}
     >
@@ -116,7 +137,10 @@ const BottomTabNavigator = () => {
         component={DiscoverStack}
         options={{
           tabBarIcon: ({ focused }) => (
-            <TabBarIcon icon="🧭" focused={focused} />
+            <TabBarIcon 
+              iconName="compass-outline" 
+              focused={focused} 
+            />
           ),
         }}
       />
@@ -125,7 +149,10 @@ const BottomTabNavigator = () => {
         component={MapStack}
         options={{
           tabBarIcon: ({ focused }) => (
-            <TabBarIcon icon="🗺️" focused={focused} />
+            <TabBarIcon 
+              iconName="map-outline" 
+              focused={focused} 
+            />
           ),
         }}
       />
@@ -134,7 +161,10 @@ const BottomTabNavigator = () => {
         component={ChatbotScreen}
         options={{
           tabBarIcon: ({ focused }) => (
-            <TabBarIcon icon="💬" focused={focused} />
+            <TabBarIcon 
+              iconName="chatbox-outline" 
+              focused={focused} 
+            />
           ),
         }}
       />
@@ -143,7 +173,10 @@ const BottomTabNavigator = () => {
         component={AnnouncementStack}
         options={{
           tabBarIcon: ({ focused }) => (
-            <TabBarIcon icon="📢" focused={focused} />
+            <TabBarIcon 
+              iconName="megaphone-outline" 
+              focused={focused} 
+            />
           ),
         }}
       />
@@ -152,7 +185,10 @@ const BottomTabNavigator = () => {
         component={ProfileStack}
         options={{
           tabBarIcon: ({ focused }) => (
-            <TabBarIcon icon="👤" focused={focused} />
+            <TabBarIcon 
+              iconName="person-outline" 
+              focused={focused} 
+            />
           ),
         }}
       />
@@ -161,11 +197,15 @@ const BottomTabNavigator = () => {
 };
 
 const styles = StyleSheet.create({
+  /**
+   * Tab Bar Container
+   * Modern, clean design with proper spacing and shadows
+   */
   tabBar: {
     backgroundColor: COLORS.white,
     borderTopWidth: 1,
     borderTopColor: COLORS.accentLight,
-    height: 65,
+    height: 60, // Label olmadığı için daha kompakt yükseklik
     paddingBottom: 8,
     paddingTop: 8,
     elevation: 8,
@@ -174,26 +214,33 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 8,
   },
-  tabBarLabel: {
-    fontSize: FONT_SIZES.xs,
-    fontWeight: '500',
-    marginTop: -4,
+  /**
+   * Icon Wrapper
+   * Container for icon
+   */
+  iconWrapper: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: '100%',
+    height: '100%',
   },
+  /**
+   * Icon Container
+   * Background container for icon (optional background when focused)
+   */
   iconContainer: {
-    width: 32,
-    height: 32,
+    width: 40, // UI optimized: Daha geniş touch area
+    height: 40,
     justifyContent: 'center',
     alignItems: 'center',
-    borderRadius: 8,
+    borderRadius: 10,
   },
+  /**
+   * Focused Icon Container
+   * Subtle background highlight when tab is active
+   */
   iconContainerFocused: {
-    backgroundColor: COLORS.primaryLight + '20', // 20% opacity
-  },
-  icon: {
-    fontSize: 22,
-  },
-  iconFocused: {
-    fontSize: 24,
+    backgroundColor: COLORS.primaryLight + '15', // 15% opacity (daha subtle)
   },
 });
 

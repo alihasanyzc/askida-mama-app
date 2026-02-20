@@ -12,7 +12,9 @@ import {
 } from 'react-native';
 import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { COLORS, SPACING, FONT_SIZES } from '../constants';
+import BowlBottomSheet from '../components/common/BowlBottomSheet';
 
 const { width, height } = Dimensions.get('window');
 
@@ -20,6 +22,8 @@ const MapScreen = ({ navigation }) => {
   const insets = useSafeAreaInsets();
   const [modalVisible, setModalVisible] = useState(false);
   const [slideAnim] = useState(new Animated.Value(0));
+  const [bowlBottomSheetVisible, setBowlBottomSheetVisible] = useState(false);
+  const [selectedBowl, setSelectedBowl] = useState(null);
   
   const [region, setRegion] = useState({
     latitude: 41.0082,
@@ -66,70 +70,100 @@ const MapScreen = ({ navigation }) => {
     navigation.navigate('QRScanner');
   };
 
+  const handleMarkerPress = (marker) => {
+    setSelectedBowl(marker);
+    setBowlBottomSheetVisible(true);
+  };
+
+  const handleCloseBowlSheet = () => {
+    setBowlBottomSheetVisible(false);
+    setTimeout(() => {
+      setSelectedBowl(null);
+    }, 300);
+  };
+
   // Mock marker data - Yeşil ve kırmızı marker'lar
   const markers = [
     {
-      id: 1,
+      id: 'K002',
       latitude: 41.0082,
       longitude: 28.9784,
       type: 'green', // Yeşil marker
-      title: 'Mama Noktası 1',
+      title: 'Mama Kabı',
+      status: 'full',
+      address: 'Yunus Emre Mahallesi, Beyaz Cennet Sokak No:45, Pamukkale, Denizli',
     },
     {
-      id: 2,
+      id: 'K003',
       latitude: 41.0100,
       longitude: 28.9800,
       type: 'green',
-      title: 'Mama Noktası 2',
+      title: 'Mama Kabı',
+      status: 'full',
+      address: 'Kadıköy, Rasimpaşa Mahallesi, Söğütlüçeşme Caddesi No:42, İstanbul',
     },
     {
-      id: 3,
+      id: 'K004',
       latitude: 41.0060,
       longitude: 28.9760,
       type: 'green',
-      title: 'Mama Noktası 3',
+      title: 'Mama Kabı',
+      status: 'full',
+      address: 'Kadıköy, Fenerbahçe Mahallesi, Fenerbahçe Parkı İçi, İstanbul',
     },
     {
-      id: 4,
+      id: 'K005',
       latitude: 41.0120,
       longitude: 28.9820,
       type: 'green',
-      title: 'Mama Noktası 4',
+      title: 'Mama Kabı',
+      status: 'full',
+      address: 'Üsküdar, Selimiye Mahallesi, İskele Meydanı No:8, İstanbul',
     },
     {
-      id: 5,
+      id: 'K006',
       latitude: 41.0090,
       longitude: 28.9790,
       type: 'green',
-      title: 'Mama Noktası 5',
+      title: 'Mama Kabı',
+      status: 'full',
+      address: 'Kadıköy, Göztepe Mahallesi, Bağdat Caddesi No:125, İstanbul',
     },
     {
-      id: 6,
+      id: 'K007',
       latitude: 41.0070,
       longitude: 28.9770,
       type: 'red', // Kırmızı marker
-      title: 'Acil Yardım Noktası 1',
+      title: 'Mama Kabı',
+      status: 'empty',
+      address: 'Kadıköy, Caddebostan Mahallesi, Bağdat Caddesi No:301, İstanbul',
     },
     {
-      id: 7,
+      id: 'K008',
       latitude: 41.0110,
       longitude: 28.9810,
       type: 'red',
-      title: 'Acil Yardım Noktası 2',
+      title: 'Mama Kabı',
+      status: 'empty',
+      address: 'Kadıköy, Zühtüpaşa Mahallesi, Dr. Esat Işık Caddesi No:18, İstanbul',
     },
     {
-      id: 8,
+      id: 'K009',
       latitude: 41.0050,
       longitude: 28.9750,
       type: 'red',
-      title: 'Acil Yardım Noktası 3',
+      title: 'Mama Kabı',
+      status: 'empty',
+      address: 'Kadıköy, Feneryolu Mahallesi, Bağdat Caddesi No:401, İstanbul',
     },
     {
-      id: 9,
+      id: 'K010',
       latitude: 41.0130,
       longitude: 28.9830,
       type: 'red',
-      title: 'Acil Yardım Noktası 4',
+      title: 'Mama Kabı',
+      status: 'empty',
+      address: 'Üsküdar, Kuzguncuk Mahallesi, İcadiye Caddesi No:25, İstanbul',
     },
   ];
 
@@ -160,14 +194,19 @@ const MapScreen = ({ navigation }) => {
               longitude: marker.longitude,
             }}
             title={marker.title}
+            onPress={() => handleMarkerPress(marker)}
           >
             <View
               style={[
                 styles.markerContainer,
-                marker.type === 'green' ? styles.greenMarker : styles.redMarker,
+                marker.status === 'full' ? styles.greenMarker : styles.redMarker,
               ]}
             >
-              <Text style={styles.markerIcon}>🐾</Text>
+              <MaterialCommunityIcons
+                name="paw-outline"
+                size={24}
+                color={COLORS.white}
+              />
             </View>
           </Marker>
         ))}
@@ -179,19 +218,17 @@ const MapScreen = ({ navigation }) => {
         activeOpacity={0.7}
         onPress={handleQRScan}
       >
-        <Text style={styles.qrIcon}>📱</Text>
+        <Ionicons name="qr-code-outline" size={20} color={COLORS.white} />
       </TouchableOpacity>
 
       {/* Bağış Yap Button - Bottom */}
-      <View style={[styles.bottomContainer, { bottom: insets.bottom + SPACING.lg }]}>
+      <View style={[styles.bottomContainer, { bottom: insets.bottom }]}>
         <TouchableOpacity
           style={styles.donateButton}
           activeOpacity={0.8}
           onPress={handleDonatePress}
         >
-          <Text style={styles.heartIcon}>❤️</Text>
           <Text style={styles.donateButtonText}>Bağış Yap</Text>
-          <Text style={styles.arrowIcon}>⬆</Text>
         </TouchableOpacity>
       </View>
 
@@ -225,8 +262,12 @@ const MapScreen = ({ navigation }) => {
                   activeOpacity={0.7}
                   onPress={handleFoodDonation}
                 >
-                  <View style={[styles.optionIcon, { backgroundColor: '#FFA500' }]}>
-                    <Text style={styles.optionIconText}>📦</Text>
+                  <View style={[styles.optionIcon, { backgroundColor: '#FFF3E0' }]}>
+                    <MaterialCommunityIcons
+                      name="bowl-food"
+                      size={32}
+                      color="#FF8C42"
+                    />
                   </View>
                   <View style={styles.optionTextContainer}>
                     <Text style={styles.optionTitle}>Mama Bağışı</Text>
@@ -240,8 +281,12 @@ const MapScreen = ({ navigation }) => {
                   activeOpacity={0.7}
                   onPress={handleMedicalDonation}
                 >
-                  <View style={[styles.optionIcon, { backgroundColor: '#90EE90' }]}>
-                    <Text style={styles.optionIconText}>💚</Text>
+                  <View style={[styles.optionIcon, { backgroundColor: '#E8F5E9' }]}>
+                    <MaterialCommunityIcons
+                      name="medical-bag"
+                      size={32}
+                      color="#4CAF50"
+                    />
                   </View>
                   <View style={styles.optionTextContainer}>
                     <Text style={styles.optionTitle}>Tedavi Bağışı</Text>
@@ -253,6 +298,13 @@ const MapScreen = ({ navigation }) => {
           </View>
         </TouchableWithoutFeedback>
       </Modal>
+
+      {/* Bowl Bottom Sheet */}
+      <BowlBottomSheet
+        visible={bowlBottomSheetVisible}
+        onClose={handleCloseBowlSheet}
+        bowlData={selectedBowl}
+      />
     </View>
   );
 };
@@ -280,13 +332,10 @@ const styles = StyleSheet.create({
     elevation: 5,
   },
   greenMarker: {
-    backgroundColor: '#4CAF50',
+    backgroundColor: '#4CAF50', // Dolu mama kapları - Yeşil
   },
   redMarker: {
-    backgroundColor: '#F44336',
-  },
-  markerIcon: {
-    fontSize: 20,
+    backgroundColor: '#F44336', // Boş mama kapları - Kırmızı
   },
   qrButton: {
     position: 'absolute',
@@ -303,10 +352,6 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 5,
   },
-  qrIcon: {
-    fontSize: 20,
-    color: COLORS.white,
-  },
   bottomContainer: {
     position: 'absolute',
     left: 0,
@@ -320,7 +365,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     backgroundColor: COLORS.primary,
     paddingHorizontal: SPACING.xl * 2,
-    paddingVertical: SPACING.lg,
+    paddingVertical: SPACING.sm,  // lg → md (yükseklik azaltıldı)
     borderRadius: 30,
     width: width * 0.85,
     shadowColor: '#000',
@@ -329,18 +374,9 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 8,
   },
-  heartIcon: {
-    fontSize: 20,
-    marginRight: SPACING.sm,
-  },
   donateButtonText: {
     fontSize: FONT_SIZES.xl,
     fontWeight: '700',
-    color: COLORS.white,
-    marginRight: SPACING.sm,
-  },
-  arrowIcon: {
-    fontSize: 18,
     color: COLORS.white,
   },
   modalOverlay: {
@@ -398,9 +434,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: SPACING.md,
-  },
-  optionIconText: {
-    fontSize: 28,
   },
   optionTextContainer: {
     flex: 1,

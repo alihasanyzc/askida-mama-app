@@ -131,23 +131,18 @@ const DonationScreen = ({ route, navigation }) => {
       />
       
       <View style={styles.foodInfo}>
-        <View style={styles.foodHeader}>
-          <Text style={styles.foodName}>{item.name}</Text>
-          <View style={styles.priceTag}>
-            <Text style={styles.priceText}>
-              {item.price} ₺/{item.unit}
-            </Text>
-          </View>
-        </View>
+        <Text style={styles.foodName} numberOfLines={2}>
+          {item.name}
+        </Text>
         
-        <Text style={styles.foodDescription}>{item.description}</Text>
+        <Text style={styles.foodDescription} numberOfLines={2}>
+          {item.description}
+        </Text>
         
         <View style={styles.foodFooter}>
-          <View style={styles.categoryBadge}>
-            <Text style={styles.categoryIcon}>{selectedTab === 'dog' ? '🐕' : '🐱'}</Text>
-            <Text style={styles.categoryText}>{item.category}</Text>
-            <Text style={styles.weightText}>• {item.weight}</Text>
-          </View>
+          <Text style={styles.priceText}>
+            {item.price} ₺
+          </Text>
           
           <TouchableOpacity
             style={styles.donateButton}
@@ -316,9 +311,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     backgroundColor: COLORS.white,
     borderRadius: 16,
-    paddingVertical: SPACING.md,
-    paddingRight: SPACING.md,
-    paddingLeft: SPACING.md,
+    padding: SPACING.md,
     marginBottom: SPACING.md,
     borderWidth: 1,
     borderColor: COLORS.lightGray,
@@ -327,68 +320,41 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 3,
+    height: 120, // Sabit yükseklik
   },
   foodImage: {
-    width: 80,
-    alignSelf: 'stretch',
+    width: 88,
+    height: 88,
     borderRadius: 12,
     marginRight: SPACING.md,
     backgroundColor: COLORS.lightGray,
   },
   foodInfo: {
     flex: 1,
-  },
-  foodHeader: {
-    flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: SPACING.xs,
   },
   foodName: {
-    flex: 1,
     fontSize: FONT_SIZES.md,
     fontWeight: '600',
     color: COLORS.text,
-    marginRight: SPACING.sm,
-  },
-  priceTag: {
-    backgroundColor: COLORS.primary,
-    paddingHorizontal: SPACING.sm,
-    paddingVertical: 4,
-    borderRadius: 8,
-  },
-  priceText: {
-    fontSize: FONT_SIZES.sm,
-    fontWeight: '700',
-    color: COLORS.white,
+    marginBottom: SPACING.xs,
   },
   foodDescription: {
     fontSize: FONT_SIZES.sm,
     color: COLORS.textSecondary,
-    marginBottom: SPACING.md,
     lineHeight: 18,
+    flex: 1,
   },
   foodFooter: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    marginTop: SPACING.xs,
   },
-  categoryBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  categoryIcon: {
-    fontSize: 14,
-  },
-  categoryText: {
-    fontSize: FONT_SIZES.sm,
+  priceText: {
+    fontSize: FONT_SIZES.lg,
+    fontWeight: '700',
     color: COLORS.text,
-    fontWeight: '500',
-  },
-  weightText: {
-    fontSize: FONT_SIZES.sm,
-    color: COLORS.textSecondary,
   },
   donateButton: {
     backgroundColor: COLORS.primary,

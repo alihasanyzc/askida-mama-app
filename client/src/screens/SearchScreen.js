@@ -10,6 +10,7 @@ import {
   StatusBar,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Entypo } from '@expo/vector-icons';
 import { COLORS, SPACING, FONT_SIZES } from '../constants';
 
 const SearchScreen = ({ navigation }) => {
@@ -150,7 +151,12 @@ const SearchScreen = ({ navigation }) => {
           <Text style={styles.backIcon}>←</Text>
         </TouchableOpacity>
         <View style={styles.searchContainer}>
-          <Text style={styles.searchIcon}>🔍</Text>
+          <Entypo 
+            name="magnifying-glass" 
+            size={16} 
+            color={COLORS.gray} 
+            style={styles.searchIcon}
+          />
           <TextInput
             style={styles.searchInput}
             placeholder="Ara"
@@ -228,7 +234,6 @@ const styles = StyleSheet.create({
     height: 40,
   },
   searchIcon: {
-    fontSize: 16,
     marginRight: SPACING.sm,
   },
   searchInput: {

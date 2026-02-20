@@ -1,0 +1,8 @@
+{
+  "android": {
+    "package": "com.anonymous.askidamama"
+  },
+  "ios": {
+    "bundleIdentifier": "com.anonymous.askidamama"
+  }
+}

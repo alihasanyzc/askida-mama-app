@@ -137,11 +137,11 @@ const CommentsModal = ({
     const keyboardHideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
 
     const keyboardWillShow = Keyboard.addListener(keyboardShowEvent, (e) => {
-      setKeyboardHeight(e.endCoordinates.height);
+        setKeyboardHeight(e.endCoordinates.height);
     });
 
     const keyboardWillHide = Keyboard.addListener(keyboardHideEvent, () => {
-      setKeyboardHeight(0);
+        setKeyboardHeight(0);
     });
 
     return () => {
@@ -199,9 +199,9 @@ const CommentsModal = ({
     }
 
     // Clear input and reset height
-    setCommentText('');
+      setCommentText('');
     setInputHeight(INPUT_CONFIG.DEFAULT_HEIGHT);
-
+      
     // Blur input to close keyboard
     inputRef.current?.blur();
   }, [commentText, triggerSendButtonAnimation]);
@@ -428,7 +428,7 @@ const CommentsModal = ({
     const heartIconColor = commentLikeState.isLiked
       ? COLORS_CONFIG.HEART_LIKED
       : COLORS.secondary;
-
+    
     return (
       <View style={styles.commentItem} testID={`comment-item-${item.id}`}>
         <Image
@@ -441,27 +441,27 @@ const CommentsModal = ({
           onPress={() => handleCommentDoubleTap(item.id, commentLikeState)}
           accessibilityRole="button"
         >
-          <View style={styles.commentContent}>
-            <View style={styles.commentTextContainer}>
+        <View style={styles.commentContent}>
+          <View style={styles.commentTextContainer}>
               <Text style={styles.commentUsername} numberOfLines={1}>
                 {item.user.name}
               </Text>
-              <Text style={styles.commentText}>{item.text}</Text>
-            </View>
-            <View style={styles.commentFooter}>
-              <Text style={styles.commentTimestamp}>{item.timestamp}</Text>
-              {commentLikeState.likes > 0 && (
-                <>
-                  <Text style={styles.commentDot}>•</Text>
+            <Text style={styles.commentText}>{item.text}</Text>
+          </View>
+          <View style={styles.commentFooter}>
+            <Text style={styles.commentTimestamp}>{item.timestamp}</Text>
+            {commentLikeState.likes > 0 && (
+              <>
+                <Text style={styles.commentDot}>•</Text>
                   <Text style={styles.commentLikes}>
                     {commentLikeState.likes} beğeni
                   </Text>
-                </>
-              )}
-            </View>
+              </>
+            )}
           </View>
+        </View>
         </TouchableWithoutFeedback>
-        <TouchableOpacity
+        <TouchableOpacity 
           style={styles.commentLikeButton}
           onPress={() =>
             handleLikeComment(item.id, commentLikeState.likes, commentLikeState.isLiked)
@@ -507,14 +507,14 @@ const CommentsModal = ({
       testID="comments-modal"
     >
       <View style={styles.modalOverlay}>
-        <TouchableOpacity
-          style={styles.backdrop}
-          activeOpacity={1}
+        <TouchableOpacity 
+          style={styles.backdrop} 
+          activeOpacity={1} 
           onPress={handleClose}
           accessibilityLabel="Close comments modal"
           accessibilityRole="button"
         />
-
+        
         <Animated.View
           style={[
             styles.modalContainer,
@@ -545,10 +545,10 @@ const CommentsModal = ({
           />
 
           {/* Input Area */}
-          <View
+          <View 
             style={[
-              styles.inputContainer,
-              {
+              styles.inputContainer, 
+              { 
                 bottom: keyboardHeight > 0 ? keyboardHeight : 0,
                 paddingBottom: inputPaddingBottom,
               },
