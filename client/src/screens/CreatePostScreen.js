@@ -99,7 +99,6 @@ const CreatePostScreen = ({ navigation }) => {
         >
           <Text style={styles.backIcon}>←</Text>
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Yeni Gönderi</Text>
         <View style={styles.placeholder} />
       </View>
 
@@ -238,11 +237,6 @@ const styles = StyleSheet.create({
   },
   backIcon: {
     fontSize: 28,
-    color: COLORS.secondary,
-  },
-  headerTitle: {
-    fontSize: FONT_SIZES.xl,
-    fontWeight: '700',
     color: COLORS.secondary,
   },
   placeholder: {

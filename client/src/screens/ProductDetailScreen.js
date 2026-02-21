@@ -46,7 +46,6 @@ const ProductDetailScreen = ({ route, navigation }) => {
         >
           <Text style={styles.backIcon}>←</Text>
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Ürün Detayı</Text>
         <View style={styles.placeholder} />
       </View>
 
@@ -71,14 +70,6 @@ const ProductDetailScreen = ({ route, navigation }) => {
             {product.category === 'Köpek' ? 'Premium Dog' : 'Premium Cat'} • {product.weight}
           </Text>
 
-          {/* Category Badge */}
-          <View style={styles.categoryBadge}>
-            <Text style={styles.categoryIcon}>
-              {product.category === 'Köpek' ? '🐕' : '🐱'}
-            </Text>
-            <Text style={styles.categoryText}>{product.category}</Text>
-          </View>
-
           {/* Miktar Seçim */}
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Miktar Seçin</Text>
@@ -94,6 +85,7 @@ const ProductDetailScreen = ({ route, navigation }) => {
               <View style={styles.quantityDisplay}>
                 <Text style={styles.quantityText}>{quantity} kg</Text>
                 <Text style={styles.quantityPrice}>{product.price} ₺ / kg</Text>
+                <Text style={styles.quantityTotal}>Toplam: {totalPrice} ₺</Text>
               </View>
 
               <TouchableOpacity
@@ -165,9 +157,7 @@ const ProductDetailScreen = ({ route, navigation }) => {
             onPress={handleDonate}
             activeOpacity={0.8}
           >
-            <Text style={styles.donateButtonText}>
-              {totalPrice} ₺ Bağış Yap ({quantity} kg)
-            </Text>
+            <Text style={styles.donateButtonText}>Bağış Yap</Text>
           </TouchableOpacity>
 
           <View style={{ height: insets.bottom + SPACING.lg }} />
@@ -189,8 +179,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: SPACING.md,
     paddingBottom: SPACING.sm,
     backgroundColor: COLORS.white,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.lightGray,
   },
   backButton: {
     width: 40,
@@ -200,11 +188,6 @@ const styles = StyleSheet.create({
   },
   backIcon: {
     fontSize: 24,
-    color: COLORS.text,
-  },
-  headerTitle: {
-    fontSize: FONT_SIZES.xl,
-    fontWeight: '700',
     color: COLORS.text,
   },
   placeholder: {
@@ -239,26 +222,7 @@ const styles = StyleSheet.create({
   productSubtitle: {
     fontSize: FONT_SIZES.md,
     color: COLORS.textSecondary,
-    marginBottom: SPACING.md,
-  },
-  categoryBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: COLORS.accentLight,
-    paddingHorizontal: SPACING.md,
-    paddingVertical: SPACING.sm,
-    borderRadius: 20,
-    alignSelf: 'flex-start',
     marginBottom: SPACING.xl,
-  },
-  categoryIcon: {
-    fontSize: 16,
-    marginRight: SPACING.xs,
-  },
-  categoryText: {
-    fontSize: FONT_SIZES.md,
-    fontWeight: '600',
-    color: COLORS.text,
   },
   section: {
     marginBottom: SPACING.xl,
@@ -302,6 +266,12 @@ const styles = StyleSheet.create({
   quantityPrice: {
     fontSize: FONT_SIZES.sm,
     color: COLORS.textSecondary,
+    marginTop: 4,
+  },
+  quantityTotal: {
+    fontSize: FONT_SIZES.md,
+    fontWeight: '700',
+    color: COLORS.primary,
     marginTop: 4,
   },
   descriptionText: {

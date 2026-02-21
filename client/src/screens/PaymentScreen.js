@@ -158,9 +158,7 @@ const PaymentScreen = ({ route, navigation }) => {
           disabled={!selectedCard}
           activeOpacity={0.8}
         >
-          <Text style={styles.paymentButtonText}>
-            Ödeme Yap ({amount} TL)
-          </Text>
+          <Text style={styles.paymentButtonText}>Bağış Yap</Text>
         </TouchableOpacity>
       </View>
     </View>

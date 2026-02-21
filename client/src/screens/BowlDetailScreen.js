@@ -307,9 +307,7 @@ const BowlDetailScreen = ({ route, navigation }) => {
                       !isDonationValid && styles.confirmDonationButtonTextDisabled,
                     ]}
                   >
-                    {isDonationValid 
-                      ? `Bağış Yap (${selectedAmount || customAmount} TL)` 
-                      : 'Bağış Yap'}
+                    Bağış Yap
                   </Text>
                 </TouchableOpacity>
               </View>

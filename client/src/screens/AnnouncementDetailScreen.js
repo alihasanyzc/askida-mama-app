@@ -13,27 +13,8 @@ const AnnouncementDetailScreen = ({ route, navigation }) => {
   const insets = useSafeAreaInsets();
   const { announcement } = route.params;
 
-  // Kategori label'ını al
-  const getCategoryLabel = (category) => {
-    const labels = {
-      injured: 'Yaralı Hayvan',
-      report: 'İhbar',
-      adoption: 'Sahiplendirme',
-      lost: 'Kayıp',
-    };
-    return labels[category] || category;
-  };
-
-  // Kategori rengi
-  const getCategoryColor = (category) => {
-    const colors = {
-      injured: '#FF6B6B',
-      report: '#FF8C42',
-      adoption: '#4ECDC4',
-      lost: '#95E1D3',
-    };
-    return colors[category] || '#FF8C42';
-  };
+  const tagLabel = announcement.tag || 'İlan';
+  const tagColor = announcement.tagColor || '#FF8C42';
 
   return (
     <View style={styles.container}>
@@ -49,26 +30,17 @@ const AnnouncementDetailScreen = ({ route, navigation }) => {
             <Text style={styles.backIcon}>←</Text>
           </TouchableOpacity>
           
-          {/* Category Badge */}
-          <View
-            style={[
-              styles.categoryBadge,
-              { 
-                backgroundColor: getCategoryColor(announcement.category),
-                top: insets.top + 12,
-              },
-            ]}
-          >
-            <Text style={styles.categoryBadgeText}>
-              {getCategoryLabel(announcement.category)}
-            </Text>
-          </View>
-          
           <Image
             source={{ uri: announcement.image }}
             style={styles.mainImage}
             resizeMode="cover"
           />
+          {/* Etiket: kartlarla aynı, resmin sol alt köşesinde */}
+          <View style={[styles.detailTag, { backgroundColor: tagColor }]}>
+            <Text style={styles.detailTagText} numberOfLines={1} ellipsizeMode="tail">
+              {tagLabel}
+            </Text>
+          </View>
         </View>
 
         {/* Başlık ve Zaman */}
@@ -189,18 +161,22 @@ const styles = StyleSheet.create({
     fontSize: 24,
     color: '#000',
   },
-  categoryBadge: {
+  detailTag: {
     position: 'absolute',
-    right: 16,
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    borderRadius: 20,
+    bottom: 12,
+    left: 12,
+    width: 80,
+    height: 28,
+    borderRadius: 14,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 8,
     zIndex: 1,
   },
-  categoryBadgeText: {
-    fontSize: 16,
-    fontWeight: '600',
+  detailTagText: {
     color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '600',
   },
   mainImage: {
     width: '100%',

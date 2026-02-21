@@ -10,7 +10,10 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
+import { MaterialCommunityIcons, FontAwesome5 } from '@expo/vector-icons';
 import { COLORS, SPACING, FONT_SIZES } from '../constants';
+
+const TAB_ICON_SIZE = 28;
 
 const { width } = Dimensions.get('window');
 
@@ -167,7 +170,6 @@ const DonationScreen = ({ route, navigation }) => {
         >
           <Text style={styles.backIcon}>←</Text>
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Mama Bağışı</Text>
         <View style={styles.placeholder} />
       </View>
 
@@ -181,15 +183,11 @@ const DonationScreen = ({ route, navigation }) => {
           onPress={() => setSelectedTab('cat')}
           activeOpacity={0.7}
         >
-          <Text style={styles.tabIcon}>🐱</Text>
-          <Text
-            style={[
-              styles.tabText,
-              selectedTab === 'cat' && styles.tabTextActive,
-            ]}
-          >
-            Kedi
-          </Text>
+          <FontAwesome5
+            name="cat"
+            size={TAB_ICON_SIZE}
+            color={selectedTab === 'cat' ? COLORS.white : COLORS.text}
+          />
         </TouchableOpacity>
 
         <TouchableOpacity
@@ -200,15 +198,11 @@ const DonationScreen = ({ route, navigation }) => {
           onPress={() => setSelectedTab('dog')}
           activeOpacity={0.7}
         >
-          <Text style={styles.tabIcon}>🐕</Text>
-          <Text
-            style={[
-              styles.tabText,
-              selectedTab === 'dog' && styles.tabTextActive,
-            ]}
-          >
-            Köpek
-          </Text>
+          <MaterialCommunityIcons
+            name="dog-side"
+            size={TAB_ICON_SIZE}
+            color={selectedTab === 'dog' ? COLORS.white : COLORS.text}
+          />
         </TouchableOpacity>
       </View>
 
@@ -244,8 +238,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: SPACING.md,
     paddingBottom: SPACING.sm,
     backgroundColor: COLORS.white,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.lightGray,
   },
   backButton: {
     width: 40,
@@ -255,11 +247,6 @@ const styles = StyleSheet.create({
   },
   backIcon: {
     fontSize: 24,
-    color: COLORS.text,
-  },
-  headerTitle: {
-    fontSize: FONT_SIZES.xl,
-    fontWeight: '700',
     color: COLORS.text,
   },
   placeholder: {
@@ -274,27 +261,14 @@ const styles = StyleSheet.create({
   },
   tabButton: {
     flex: 1,
-    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: SPACING.md,
     borderRadius: 12,
     backgroundColor: COLORS.accentLight,
-    gap: SPACING.xs,
   },
   tabButtonActive: {
     backgroundColor: COLORS.primary,
-  },
-  tabIcon: {
-    fontSize: 20,
-  },
-  tabText: {
-    fontSize: FONT_SIZES.md,
-    fontWeight: '600',
-    color: COLORS.text,
-  },
-  tabTextActive: {
-    color: COLORS.white,
   },
   gradient: {
     height: 20,

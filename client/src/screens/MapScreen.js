@@ -264,7 +264,7 @@ const MapScreen = ({ navigation }) => {
                 >
                   <View style={[styles.optionIcon, { backgroundColor: '#FFF3E0' }]}>
                     <MaterialCommunityIcons
-                      name="bowl-food"
+                      name="bowl-outline"
                       size={32}
                       color="#FF8C42"
                     />

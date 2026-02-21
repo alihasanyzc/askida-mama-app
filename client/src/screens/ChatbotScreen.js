@@ -10,8 +10,10 @@ import {
   Platform,
   Keyboard,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { COLORS, SPACING, FONT_SIZES } from '../constants';
+
+const CHAT_BG = '#F8F8F8';
 
 // Kural tabanlı yanıtlar
 const RULE_BASED_RESPONSES = {
@@ -77,6 +79,7 @@ const SYMPTOM_REPLIES = [
 ];
 
 const ChatbotScreen = () => {
+  const insets = useSafeAreaInsets();
   const [messages, setMessages] = useState([
     {
       id: 1,
@@ -169,7 +172,7 @@ const ChatbotScreen = () => {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top']}>
       {/* Header */}
       <View style={styles.header}>
         <View style={styles.avatar}>
@@ -254,15 +257,10 @@ const ChatbotScreen = () => {
               ))}
             </View>
           )}
-
-          {/* Disclaimer - Scroll içinde en sonda */}
-          <Text style={styles.disclaimer}>
-            PawAI hata yapabilir. Önemli bilgileri kontrol edin.
-          </Text>
         </ScrollView>
 
-        {/* Input Area */}
-        <View style={styles.inputContainer}>
+        {/* Input Area + Disclaimer (sabit altta) */}
+        <View style={[styles.inputContainer, { paddingBottom: Math.max(SPACING.sm, insets.bottom * 0.5) }]}>
           <View style={styles.inputWrapper}>
             <TextInput
               style={styles.input}
@@ -281,6 +279,9 @@ const ChatbotScreen = () => {
               <Text style={styles.sendIcon}>➤</Text>
             </TouchableOpacity>
           </View>
+          <Text style={styles.disclaimer}>
+            PawAI hata yapabilir. Önemli bilgileri kontrol edin.
+          </Text>
         </View>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -290,14 +291,14 @@ const ChatbotScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: CHAT_BG,
   },
   header: {
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 16,
     paddingVertical: 12,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: CHAT_BG,
     borderBottomWidth: 1,
     borderBottomColor: '#F0F0F0',
   },
@@ -328,7 +329,7 @@ const styles = StyleSheet.create({
   },
   messagesContainer: {
     flex: 1,
-    backgroundColor: '#F8F8F8',
+    backgroundColor: CHAT_BG,
   },
   messagesContent: {
     padding: 16,
@@ -401,16 +402,16 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   inputContainer: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: CHAT_BG,
     borderTopWidth: 0,
     paddingHorizontal: 16,
-    paddingVertical: 2,
+    paddingTop: 8,
   },
   disclaimer: {
     fontSize: 11,
     color: '#B8976C',
     textAlign: 'center',
-    marginTop: 16,
+    marginTop: 8,
     paddingBottom: 4,
   },
   inputWrapper: {

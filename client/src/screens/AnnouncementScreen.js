@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -6,10 +6,14 @@ import {
   ScrollView,
   TextInput,
   TouchableOpacity,
+  TouchableWithoutFeedback,
   Image,
   Modal,
+  Animated,
+  PanResponder,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Entypo, Ionicons } from '@expo/vector-icons';
 
 // Mock İlan Verileri
 const MOCK_ANNOUNCEMENTS = [
@@ -21,7 +25,7 @@ const MOCK_ANNOUNCEMENTS = [
     location: 'Caferağa Mahallesi, Kadıköy, İstanbul',
     time: '2 saat önce',
     phone: '0555 123 4567',
-    tag: 'Yaralı Hayvan',
+    tag: 'Yaralı',
     tagColor: '#FF4444',
     image: 'https://images.unsplash.com/photo-1583511655857-d19b40a7a54e?w=800&q=80',
     isOwner: true, // Bu ilan kullanıcının kendisine ait
@@ -47,7 +51,7 @@ const MOCK_ANNOUNCEMENTS = [
     location: 'Etiler, Beşiktaş, İstanbul',
     time: '1 gün önce',
     phone: '0545 111 2233',
-    tag: 'Sahiplendirme',
+    tag: 'Sahiplen',
     tagColor: '#4CAF50',
     image: 'https://images.unsplash.com/photo-1633722715463-d30f4f325e24?w=800&q=80',
     isOwner: true, // Bu ilan kullanıcının kendisine ait
@@ -82,7 +86,7 @@ const MOCK_ANNOUNCEMENTS = [
     location: 'Caddebostan, Kadıköy, İstanbul',
     time: '2 gün önce',
     phone: '0542 777 8899',
-    tag: 'Sahiplendirme',
+    tag: 'Sahiplen',
     tagColor: '#4CAF50',
     image: 'https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba?w=800&q=80',
     isOwner: false, // Başkasının ilanı
@@ -113,21 +117,65 @@ const CITIES = [
   'Konya', 'Mersin', 'Diyarbakır', 'Kayseri', 'Eskişehir'
 ];
 
+const SWIPE_CLOSE_THRESHOLD = 100;
+const SWIPE_VELOCITY_THRESHOLD = 0.4;
+
 const AnnouncementScreen = ({ navigation }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [isFilterModalVisible, setIsFilterModalVisible] = useState(false);
   const insets = useSafeAreaInsets();
-  
+  const modalTranslateY = useRef(new Animated.Value(0)).current;
+
   // Filtre state'leri
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [selectedCity, setSelectedCity] = useState('İstanbul');
   const [selectedDistrict, setSelectedDistrict] = useState('Kadıköy');
   const [selectedNeighborhood, setSelectedNeighborhood] = useState('Caferağa Mahallesi');
-  
+
   // Dropdown açık/kapalı durumları
   const [isCityDropdownOpen, setIsCityDropdownOpen] = useState(false);
   const [isDistrictDropdownOpen, setIsDistrictDropdownOpen] = useState(false);
   const [isNeighborhoodDropdownOpen, setIsNeighborhoodDropdownOpen] = useState(false);
+
+  useEffect(() => {
+    if (isFilterModalVisible) {
+      modalTranslateY.setValue(0);
+    }
+  }, [isFilterModalVisible, modalTranslateY]);
+
+  const closeFilterModal = () => setIsFilterModalVisible(false);
+
+  const panResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => true,
+      onMoveShouldSetPanResponder: (_, gestureState) => gestureState.dy > 10,
+      onPanResponderMove: (_, gestureState) => {
+        if (gestureState.dy > 0) {
+          modalTranslateY.setValue(gestureState.dy);
+        }
+      },
+      onPanResponderRelease: (_, gestureState) => {
+        const { dy, vy } = gestureState;
+        if (dy > SWIPE_CLOSE_THRESHOLD || vy > SWIPE_VELOCITY_THRESHOLD) {
+          Animated.timing(modalTranslateY, {
+            toValue: 400,
+            duration: 200,
+            useNativeDriver: true,
+          }).start(() => {
+            modalTranslateY.setValue(0);
+            closeFilterModal();
+          });
+        } else {
+          Animated.spring(modalTranslateY, {
+            toValue: 0,
+            useNativeDriver: true,
+            tension: 65,
+            friction: 11,
+          }).start();
+        }
+      },
+    })
+  ).current;
 
   const handleAnnouncementPress = (announcement) => {
     navigation.navigate('AnnouncementDetail', { announcement });
@@ -147,15 +195,12 @@ const AnnouncementScreen = ({ navigation }) => {
 
   return (
     <View style={styles.container}>
-      {/* Header */}
-      <View style={[styles.header, { paddingTop: insets.top }]}>
-        <Text style={styles.headerTitle}>İlanlar</Text>
-      </View>
-
-      {/* Search Bar */}
-      <View style={styles.searchContainer}>
+      {/* Search Bar - safe area ile üstte, başlık kaldırıldı */}
+      <View style={[styles.searchContainer, { paddingTop: insets.top + 12 }]}>
         <View style={styles.searchBar}>
-          <Text style={styles.searchIcon}>🔍</Text>
+          <View style={styles.searchIconWrap}>
+            <Entypo name="magnifying-glass" size={20} color="#757575" />
+          </View>
           <TextInput
             style={styles.searchInput}
             placeholder="İlan ara..."
@@ -168,7 +213,7 @@ const AnnouncementScreen = ({ navigation }) => {
           style={styles.filterButton}
           onPress={() => setIsFilterModalVisible(true)}
         >
-          <Text style={styles.filterIcon}>⚙️</Text>
+          <Ionicons name="filter-outline" size={22} color="#757575" />
         </TouchableOpacity>
       </View>
 
@@ -194,7 +239,9 @@ const AnnouncementScreen = ({ navigation }) => {
               />
               {/* Tag */}
               <View style={[styles.tag, { backgroundColor: announcement.tagColor }]}>
-                <Text style={styles.tagText}>{announcement.tag}</Text>
+                <Text style={styles.tagText} numberOfLines={1} ellipsizeMode="tail">
+                  {announcement.tag}
+                </Text>
               </View>
             </View>
 
@@ -237,20 +284,27 @@ const AnnouncementScreen = ({ navigation }) => {
         visible={isFilterModalVisible}
         animationType="slide"
         transparent={true}
-        onRequestClose={() => setIsFilterModalVisible(false)}
+        onRequestClose={closeFilterModal}
       >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            {/* Modal Header */}
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Filtrele</Text>
-              <TouchableOpacity onPress={handleClearFilter}>
-                <Text style={styles.clearButton}>Temizle</Text>
-              </TouchableOpacity>
-            </View>
-
-            {/* Drag Handle */}
-            <View style={styles.dragHandle} />
+        <TouchableWithoutFeedback onPress={closeFilterModal}>
+          <View style={styles.modalOverlay}>
+            <TouchableWithoutFeedback onPress={() => {}}>
+              <Animated.View
+                style={[
+                  styles.modalContent,
+                  { transform: [{ translateY: modalTranslateY }] },
+                ]}
+              >
+                {/* Swipe-down alanı: header + drag handle */}
+                <View style={styles.modalSwipeArea} {...panResponder.panHandlers}>
+                  <View style={styles.modalHeader}>
+                    <Text style={styles.modalTitle}>Filtrele</Text>
+                    <TouchableOpacity onPress={handleClearFilter}>
+                      <Text style={styles.clearButton}>Temizle</Text>
+                    </TouchableOpacity>
+                  </View>
+                  <View style={styles.dragHandle} />
+                </View>
 
             <ScrollView 
               style={styles.modalScrollView}
@@ -405,8 +459,10 @@ const AnnouncementScreen = ({ navigation }) => {
             >
               <Text style={styles.applyButtonText}>Uygula</Text>
             </TouchableOpacity>
+              </Animated.View>
+            </TouchableWithoutFeedback>
           </View>
-        </View>
+        </TouchableWithoutFeedback>
       </Modal>
     </View>
   );
@@ -417,22 +473,11 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#FFFFFF',
   },
-  header: {
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-    backgroundColor: '#FFFFFF',
-    borderBottomWidth: 1,
-    borderBottomColor: '#F0F0F0',
-  },
-  headerTitle: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: '#000',
-  },
   searchContainer: {
     flexDirection: 'row',
     paddingHorizontal: 20,
     paddingVertical: 12,
+    paddingBottom: 16,
     gap: 12,
     backgroundColor: '#FFFFFF',
   },
@@ -445,9 +490,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     height: 48,
   },
-  searchIcon: {
-    fontSize: 20,
+  searchIconWrap: {
     marginRight: 8,
+    justifyContent: 'center',
   },
   searchInput: {
     flex: 1,
@@ -461,9 +506,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFF3E0',
     justifyContent: 'center',
     alignItems: 'center',
-  },
-  filterIcon: {
-    fontSize: 22,
   },
   scrollView: {
     flex: 1,
@@ -497,9 +539,12 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 12,
     left: 12,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 20,
+    width: 80,
+    height: 28,
+    borderRadius: 14,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 8,
   },
   tagText: {
     color: '#FFFFFF',
@@ -588,6 +633,9 @@ const styles = StyleSheet.create({
     borderTopRightRadius: 24,
     paddingTop: 8,
     height: '90%',
+  },
+  modalSwipeArea: {
+    paddingBottom: 0,
   },
   dragHandle: {
     width: 40,

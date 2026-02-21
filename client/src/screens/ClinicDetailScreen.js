@@ -63,7 +63,6 @@ const ClinicDetailScreen = ({ route, navigation }) => {
         >
           <Text style={styles.backIcon}>←</Text>
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Bağış Tutarı</Text>
         <View style={styles.placeholder} />
       </View>
 
@@ -167,26 +166,22 @@ const ClinicDetailScreen = ({ route, navigation }) => {
             </Text>
           </View>
         </View>
-      </ScrollView>
 
-      {/* Donate Button */}
-      <View style={[styles.footer, { paddingBottom: insets.bottom + SPACING.md }]}>
-        <TouchableOpacity
-          style={[
-            styles.donateButton,
-            !isDonationValid && styles.donateButtonDisabled,
-          ]}
-          onPress={handleDonate}
-          disabled={!isDonationValid}
-          activeOpacity={0.8}
-        >
-          <Text style={styles.donateButtonText}>
-            {isDonationValid 
-              ? `Bağış Yap (${selectedAmount || customAmount} ₺)` 
-              : 'Bağış Yap'}
-          </Text>
-        </TouchableOpacity>
-      </View>
+        {/* Donate Button - end of scroll */}
+        <View style={[styles.donateButtonWrapper, { paddingBottom: insets.bottom + SPACING.xl }]}>
+          <TouchableOpacity
+            style={[
+              styles.donateButton,
+              !isDonationValid && styles.donateButtonDisabled,
+            ]}
+            onPress={handleDonate}
+            disabled={!isDonationValid}
+            activeOpacity={0.8}
+          >
+            <Text style={styles.donateButtonText}>Bağış Yap</Text>
+          </TouchableOpacity>
+        </View>
+      </ScrollView>
     </View>
   );
 };
@@ -203,8 +198,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: SPACING.md,
     paddingBottom: SPACING.sm,
     backgroundColor: COLORS.white,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.lightGray,
   },
   backButton: {
     width: 40,
@@ -216,11 +209,6 @@ const styles = StyleSheet.create({
   },
   backIcon: {
     fontSize: 24,
-    color: COLORS.text,
-  },
-  headerTitle: {
-    fontSize: FONT_SIZES.xxl,
-    fontWeight: '700',
     color: COLORS.text,
   },
   placeholder: {
@@ -377,12 +365,9 @@ const styles = StyleSheet.create({
     lineHeight: 20,
     opacity: 0.9,
   },
-  footer: {
-    backgroundColor: COLORS.white,
+  donateButtonWrapper: {
     paddingHorizontal: SPACING.lg,
-    paddingTop: SPACING.md,
-    borderTopWidth: 1,
-    borderTopColor: COLORS.lightGray,
+    paddingTop: SPACING.xl,
   },
   donateButton: {
     backgroundColor: COLORS.primary,
