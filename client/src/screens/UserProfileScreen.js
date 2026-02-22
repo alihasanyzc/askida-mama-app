@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -9,54 +9,11 @@ import {
   StatusBar,
   Dimensions,
   ImageBackground,
-  Animated,
 } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { COLORS, SPACING, FONT_SIZES } from '../constants';
 
 const { width } = Dimensions.get('window');
-
-// Modern gradyan progress bar componenti
-const GradientProgress = ({ current, goal, label, colors }) => {
-  const progress = (current / goal) * 100;
-  const animatedWidth = useRef(new Animated.Value(0)).current;
-
-  useEffect(() => {
-    Animated.timing(animatedWidth, {
-      toValue: progress,
-      duration: 1500,
-      useNativeDriver: false,
-    }).start();
-  }, [progress]);
-
-  const widthInterpolate = animatedWidth.interpolate({
-    inputRange: [0, 100],
-    outputRange: ['0%', '100%'],
-  });
-
-  return (
-    <View style={styles.progressContainer}>
-      <View style={styles.progressHeader}>
-        <Text style={styles.progressLabel}>{label}</Text>
-        <Text style={styles.progressAmount}>₺{current.toLocaleString()}</Text>
-      </View>
-      
-      <View style={styles.progressBarBackground}>
-        <Animated.View style={[styles.progressBarFill, { width: widthInterpolate }]}>
-          <LinearGradient
-            colors={colors}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 0 }}
-            style={styles.progressGradient}
-          />
-        </Animated.View>
-      </View>
-      
-      <Text style={styles.progressGoal}>Hedef: ₺{goal.toLocaleString()}</Text>
-    </View>
-  );
-};
 
 const UserProfileScreen = ({ route, navigation }) => {
   const insets = useSafeAreaInsets();
@@ -77,16 +34,6 @@ const UserProfileScreen = ({ route, navigation }) => {
       followers: userParam.stats?.followers || 0,
       following: userParam.stats?.following || 0,
       rank: userParam.stats?.rank || 1,
-    },
-    donations: {
-      food: {
-        current: userParam.donations?.food?.current || 0,
-        goal: userParam.donations?.food?.goal || 1000,
-      },
-      medical: {
-        current: userParam.donations?.medical?.current || 0,
-        goal: userParam.donations?.medical?.goal || 1000,
-      },
     },
   };
 
@@ -203,28 +150,6 @@ const UserProfileScreen = ({ route, navigation }) => {
               {isFollowing ? 'Takip Ediliyor' : 'Takip Et'}
             </Text>
           </TouchableOpacity>
-        </View>
-
-        {/* Donation Stats */}
-        <View style={styles.donationSection}>
-          <View style={styles.donationHeader}>
-            <Text style={styles.donationIcon}>💰</Text>
-            <Text style={styles.donationTitle}>Bağış İstatistikleri</Text>
-          </View>
-          
-          <GradientProgress
-            current={user.donations.food.current}
-            goal={user.donations.food.goal}
-            label="🍖 Mama Bağışı"
-            colors={['#FF6B6B', '#FF8E53', '#FFA94D']}
-          />
-          
-          <GradientProgress
-            current={user.donations.medical.current}
-            goal={user.donations.medical.goal}
-            label="💊 Tedavi Bağışı"
-            colors={['#4ECDC4', '#44A08D', '#096B72']}
-          />
         </View>
 
         {/* Tabs */}
@@ -444,27 +369,6 @@ const styles = StyleSheet.create({
   followingButtonText: {
     color: COLORS.secondary,
   },
-  donationSection: {
-    backgroundColor: COLORS.white,
-    paddingTop: SPACING.lg,
-    paddingBottom: SPACING.md,
-    paddingHorizontal: SPACING.lg,
-  },
-  donationHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: SPACING.lg,
-  },
-  donationIcon: {
-    fontSize: 24,
-    marginRight: SPACING.sm,
-  },
-  donationTitle: {
-    fontSize: FONT_SIZES.xl,
-    fontWeight: '700',
-    color: COLORS.secondary,
-  },
   circularProgressRow: {
     flexDirection: 'row',
     justifyContent: 'space-around',
@@ -512,45 +416,6 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: COLORS.gray,
     marginLeft: 2,
-  },
-  progressLabel: {
-    fontSize: FONT_SIZES.md,
-    fontWeight: '600',
-    color: COLORS.secondary,
-    marginBottom: SPACING.xs,
-  },
-  progressGoal: {
-    fontSize: FONT_SIZES.sm,
-    color: COLORS.gray,
-  },
-  progressContainer: {
-    marginBottom: SPACING.md,
-  },
-  progressHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: SPACING.sm,
-  },
-  progressAmount: {
-    fontSize: FONT_SIZES.lg,
-    fontWeight: '700',
-    color: COLORS.primary,
-  },
-  progressBarBackground: {
-    height: 12,
-    backgroundColor: COLORS.accentLight,
-    borderRadius: 6,
-    overflow: 'hidden',
-    marginBottom: SPACING.xs,
-  },
-  progressBarFill: {
-    height: '100%',
-    borderRadius: 6,
-  },
-  progressGradient: {
-    flex: 1,
-    borderRadius: 6,
   },
   tabsContainer: {
     flexDirection: 'row',

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   View,
   Text,
@@ -14,52 +14,10 @@ import {
   TouchableWithoutFeedback,
   PanResponder,
 } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { COLORS, SPACING, FONT_SIZES } from '../constants';
 
-const { width, height } = Dimensions.get('window');
-
-// Modern gradyan progress bar componenti
-const GradientProgress = ({ current, goal, label, colors }) => {
-  const progress = (current / goal) * 100;
-  const animatedWidth = useRef(new Animated.Value(0)).current;
-
-  useEffect(() => {
-    Animated.timing(animatedWidth, {
-      toValue: progress,
-      duration: 1500,
-      useNativeDriver: false,
-    }).start();
-  }, [progress]);
-
-  const widthInterpolate = animatedWidth.interpolate({
-    inputRange: [0, 100],
-    outputRange: ['0%', '100%'],
-  });
-
-  return (
-    <View style={styles.progressContainer}>
-      <View style={styles.progressHeader}>
-        <Text style={styles.progressLabel}>{label}</Text>
-        <Text style={styles.progressAmount}>₺{current.toLocaleString()}</Text>
-      </View>
-      
-      <View style={styles.progressBarBackground}>
-        <Animated.View style={[styles.progressBarFill, { width: widthInterpolate }]}>
-          <LinearGradient
-            colors={colors}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 0 }}
-            style={styles.progressGradient}
-          />
-        </Animated.View>
-      </View>
-      
-      <Text style={styles.progressGoal}>Hedef: ₺{goal.toLocaleString()}</Text>
-    </View>
-  );
-};
+const { width } = Dimensions.get('window');
 
 const ProfileScreen = ({ navigation }) => {
   const insets = useSafeAreaInsets();
@@ -78,16 +36,6 @@ const ProfileScreen = ({ navigation }) => {
       followers: 1250,
       following: 432,
       rank: 3,
-    },
-    donations: {
-      food: {
-        current: 2450,
-        goal: 5000,
-      },
-      medical: {
-        current: 1820,
-        goal: 3000,
-      },
     },
   };
 
@@ -115,47 +63,54 @@ const ProfileScreen = ({ navigation }) => {
     }).start();
   };
 
-  const closeDrawer = () => {
+  const closeDrawer = (onClosed) => {
     Animated.timing(drawerAnim, {
       toValue: width,
       duration: 250,
       useNativeDriver: true,
     }).start(() => {
       setDrawerVisible(false);
+      if (typeof onClosed === 'function') onClosed();
     });
   };
 
-  // Menü seçenekleri
+  // Menü seçenekleri (drawer - sağdan açılır)
   const menuItems = [
     { 
       id: 1, 
-      icon: '✏️', 
-      title: 'Profili Düzenle', 
-      action: () => navigation.navigate('EditProfile', { user })
+      icon: '📅', 
+      title: 'Etkinlikler', 
+      action: () => closeDrawer(() => navigation.navigate('EventsList'))
     },
     { 
       id: 2, 
-      icon: '🔒', 
-      title: 'Gizlilik', 
-      action: () => navigation.navigate('Privacy')
+      icon: '✏️', 
+      title: 'Profili Düzenle', 
+      action: () => closeDrawer(() => navigation.navigate('EditProfile', { user }))
     },
     { 
       id: 3, 
-      icon: '📄', 
-      title: 'Hakkında', 
-      action: () => navigation.navigate('About')
+      icon: '🔒', 
+      title: 'Gizlilik', 
+      action: () => closeDrawer(() => navigation.navigate('Privacy'))
     },
     { 
       id: 4, 
-      icon: '❓', 
-      title: 'Yardım', 
-      action: () => navigation.navigate('Help')
+      icon: '📄', 
+      title: 'Hakkında', 
+      action: () => closeDrawer(() => navigation.navigate('About'))
     },
     { 
       id: 5, 
+      icon: '❓', 
+      title: 'Yardım', 
+      action: () => closeDrawer(() => navigation.navigate('Help'))
+    },
+    { 
+      id: 6, 
       icon: '🚪', 
       title: 'Çıkış Yap', 
-      action: () => console.log('Çıkış'), 
+      action: () => closeDrawer(() => console.log('Çıkış')), 
       isDanger: true 
     },
   ];
@@ -279,93 +234,6 @@ const ProfileScreen = ({ navigation }) => {
             </TouchableOpacity>
           </View>
 
-        </View>
-
-        {/* Etkinlikler Section */}
-        <View style={styles.eventsSection}>
-          <Text style={styles.sectionTitle}>Etkinlikler</Text>
-          
-          <ScrollView 
-            horizontal 
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.eventsScrollContent}
-          >
-            <TouchableOpacity style={styles.eventCard}>
-              <Image
-                source={{ uri: 'https://images.unsplash.com/photo-1450778869180-41d0601e046e?w=400' }}
-                style={styles.eventImage}
-              />
-              <View style={styles.eventInfo}>
-                <Text style={styles.eventTitle}>Mama Dağıtalım</Text>
-                <View style={styles.eventDetail}>
-                  <Text style={styles.eventIcon}>📍</Text>
-                  <Text style={styles.eventText}>Denizli Hayvan Barınağı</Text>
-                </View>
-                <View style={styles.eventDetail}>
-                  <Text style={styles.eventIcon}>📅</Text>
-                  <Text style={styles.eventText}>27 Kasım</Text>
-                </View>
-              </View>
-            </TouchableOpacity>
-
-            <TouchableOpacity style={styles.eventCard}>
-              <Image
-                source={{ uri: 'https://images.unsplash.com/photo-1587300003388-59208cc962cb?w=400' }}
-                style={styles.eventImage}
-              />
-              <View style={styles.eventInfo}>
-                <Text style={styles.eventTitle}>Sokak Temizliği</Text>
-                <View style={styles.eventDetail}>
-                  <Text style={styles.eventIcon}>📍</Text>
-                  <Text style={styles.eventText}>Merkez Park</Text>
-                </View>
-                <View style={styles.eventDetail}>
-                  <Text style={styles.eventIcon}>📅</Text>
-                  <Text style={styles.eventText}>5 Aralık</Text>
-                </View>
-              </View>
-            </TouchableOpacity>
-
-            <TouchableOpacity style={styles.eventCard}>
-              <Image
-                source={{ uri: 'https://images.unsplash.com/photo-1548681528-6a5c45b66b42?w=400' }}
-                style={styles.eventImage}
-              />
-              <View style={styles.eventInfo}>
-                <Text style={styles.eventTitle}>Aşı Kampanyası</Text>
-                <View style={styles.eventDetail}>
-                  <Text style={styles.eventIcon}>📍</Text>
-                  <Text style={styles.eventText}>Atatürk Mahallesi</Text>
-                </View>
-                <View style={styles.eventDetail}>
-                  <Text style={styles.eventIcon}>📅</Text>
-                  <Text style={styles.eventText}>12 Aralık</Text>
-                </View>
-              </View>
-            </TouchableOpacity>
-          </ScrollView>
-        </View>
-
-        {/* Donation Stats */}
-        <View style={styles.donationSection}>
-          <View style={styles.donationHeader}>
-            <Text style={styles.donationIcon}>💰</Text>
-            <Text style={styles.donationTitle}>Bağış İstatistikleri</Text>
-          </View>
-          
-          <GradientProgress
-            current={user.donations.food.current}
-            goal={user.donations.food.goal}
-            label="🍖 Mama Bağışı"
-            colors={['#FF6B6B', '#FF8E53', '#FFA94D']}
-          />
-          
-          <GradientProgress
-            current={user.donations.medical.current}
-            goal={user.donations.medical.goal}
-            label="💊 Tedavi Bağışı"
-            colors={['#4ECDC4', '#44A08D', '#096B72']}
-          />
         </View>
 
         {/* Tabs */}
@@ -618,126 +486,6 @@ const styles = StyleSheet.create({
     width: 1,
     height: 40,
     backgroundColor: COLORS.lightGray,
-  },
-  eventsSection: {
-    backgroundColor: COLORS.white,
-    paddingTop: 0,
-    paddingBottom: SPACING.md,
-    marginTop: 0,
-    marginBottom: SPACING.xs,
-    
-  },
-  sectionTitle: {
-    fontSize: FONT_SIZES.xl,
-    fontWeight: '700',
-    color: COLORS.secondary,
-    paddingHorizontal: SPACING.lg,
-    marginBottom: SPACING.sm,
-  },
-  eventsScrollContent: {
-    paddingHorizontal: SPACING.lg,
-    gap: SPACING.md,
-  },
-  eventCard: {
-    width: 280,
-    backgroundColor: COLORS.white,
-    borderRadius: 16,
-    overflow: 'hidden',
-    marginRight: SPACING.md,
-    elevation: 2,
-    shadowColor: COLORS.black,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    borderWidth: 1,
-    borderColor: COLORS.accentLight,
-  },
-  eventImage: {
-    width: '100%',
-    height: 120,
-    backgroundColor: COLORS.lightGray,
-  },
-  eventInfo: {
-    padding: SPACING.sm,
-  },
-  eventTitle: {
-    fontSize: FONT_SIZES.md,
-    fontWeight: '700',
-    color: COLORS.secondary,
-    marginBottom: SPACING.xs,
-  },
-  eventDetail: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 4,
-  },
-  eventIcon: {
-    fontSize: 14,
-    marginRight: SPACING.xs,
-  },
-  eventText: {
-    fontSize: FONT_SIZES.sm,
-    color: COLORS.gray,
-  },
-  donationSection: {
-    backgroundColor: COLORS.white,
-    paddingTop: SPACING.lg,
-    paddingBottom: SPACING.md,
-    paddingHorizontal: SPACING.lg,
-  },
-  donationHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: SPACING.lg,
-  },
-  donationIcon: {
-    fontSize: 24,
-    marginRight: SPACING.sm,
-  },
-  donationTitle: {
-    fontSize: FONT_SIZES.xl,
-    fontWeight: '700',
-    color: COLORS.secondary,
-  },
-  progressContainer: {
-    marginBottom: SPACING.md,
-  },
-  progressHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: SPACING.sm,
-  },
-  progressLabel: {
-    fontSize: FONT_SIZES.md,
-    fontWeight: '600',
-    color: COLORS.secondary,
-    marginBottom: SPACING.xs,
-  },
-  progressAmount: {
-    fontSize: FONT_SIZES.lg,
-    fontWeight: '700',
-    color: COLORS.primary,
-  },
-  progressBarBackground: {
-    height: 12,
-    backgroundColor: COLORS.accentLight,
-    borderRadius: 6,
-    overflow: 'hidden',
-    marginBottom: SPACING.xs,
-  },
-  progressBarFill: {
-    height: '100%',
-    borderRadius: 6,
-  },
-  progressGradient: {
-    flex: 1,
-    borderRadius: 6,
-  },
-  progressGoal: {
-    fontSize: FONT_SIZES.sm,
-    color: COLORS.gray,
   },
   tabsContainer: {
     flexDirection: 'row',

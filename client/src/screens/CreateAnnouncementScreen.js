@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
+import { COLORS } from '../constants';
 
 const CATEGORIES = [
   { id: 1, label: 'Yaralı Hayvan', value: 'injured' },
@@ -87,7 +88,8 @@ const CreateAnnouncementScreen = ({ navigation }) => {
   const [location, setLocation] = useState('');
   const [phone, setPhone] = useState('');
   const [isLoadingLocation, setIsLoadingLocation] = useState(false);
-  const [selectedImage, setSelectedImage] = useState(null);
+  const [selectedImages, setSelectedImages] = useState([]);
+  const MAX_IMAGES = 10;
   
   // Sahiplendirme için özel alanlar
   const [animalType, setAnimalType] = useState(null); // Hayvan Türü (Köpek, Kedi)
@@ -146,13 +148,20 @@ const CreateAnnouncementScreen = ({ navigation }) => {
         quality: 0.8,
       });
 
-      if (!result.canceled) {
-        setSelectedImage(result.assets[0].uri);
+      if (!result.canceled && result.assets[0]) {
+        setSelectedImages((prev) => {
+          if (prev.length >= MAX_IMAGES) return prev;
+          return [...prev, result.assets[0].uri];
+        });
       }
     } catch (error) {
       console.error('Image picker error:', error);
       Alert.alert('Hata', 'Fotoğraf seçilirken bir hata oluştu.');
     }
+  };
+
+  const removeImageAt = (index) => {
+    setSelectedImages((prev) => prev.filter((_, i) => i !== index));
   };
 
   const handleLocationFocus = () => {
@@ -168,12 +177,17 @@ const CreateAnnouncementScreen = ({ navigation }) => {
   };
 
   const handleSubmit = () => {
+    if (!selectedImages || selectedImages.length === 0) {
+      Alert.alert('Eksik Alan', 'En az bir fotoğraf eklemeniz gerekiyor.');
+      return;
+    }
     console.log('Create announcement:', {
       category: selectedCategory,
       title,
       description,
       location,
       phone,
+      images: selectedImages,
     });
     navigation.goBack();
   };
@@ -588,30 +602,44 @@ const CreateAnnouncementScreen = ({ navigation }) => {
           </>
         )}
 
-        {/* Fotoğraf Ekle */}
+        {/* Fotoğraf Ekle - birden fazla resim */}
         <View style={styles.section}>
-          <Text style={styles.label}>Fotoğraf Ekle</Text>
-          <TouchableOpacity
-            style={styles.photoUpload}
-            activeOpacity={0.7}
-            onPress={pickImage}
+          <Text style={styles.label}>
+            Fotoğraf Ekle <Text style={styles.required}>*</Text>
+          </Text>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.photoListContent}
           >
-            {selectedImage ? (
-              <Image source={{ uri: selectedImage }} style={styles.selectedImage} />
-            ) : (
-              <>
-                <Text style={styles.uploadIcon}>⬆️</Text>
-                <Text style={styles.uploadText}>Ekle</Text>
-              </>
-            )}
-          </TouchableOpacity>
-          {selectedImage && (
+            {selectedImages.map((uri, index) => (
+              <View key={index} style={styles.photoItemWrap}>
+                <Image source={{ uri }} style={styles.photoThumb} resizeMode="cover" />
+                <TouchableOpacity
+                  style={styles.photoRemoveBtn}
+                  onPress={() => removeImageAt(index)}
+                  activeOpacity={0.8}
+                >
+                  <Text style={styles.photoRemoveIcon}>✕</Text>
+                </TouchableOpacity>
+              </View>
+            ))}
             <TouchableOpacity
-              style={styles.removeImageButton}
-              onPress={() => setSelectedImage(null)}
+              style={styles.photoUpload}
+              activeOpacity={0.7}
+              onPress={pickImage}
+              disabled={selectedImages.length >= MAX_IMAGES}
             >
-              <Text style={styles.removeImageText}>Fotoğrafı Kaldır</Text>
+              <Text style={styles.uploadIcon}>⬆️</Text>
+              <Text style={styles.uploadText}>
+                {selectedImages.length >= MAX_IMAGES ? 'Max' : 'Ekle'}
+              </Text>
             </TouchableOpacity>
+          </ScrollView>
+          {selectedImages.length > 0 && (
+            <Text style={styles.photoHint}>
+              {selectedImages.length}/{MAX_IMAGES} fotoğraf. Yeni eklemek için "Ekle"ye dokunun.
+            </Text>
           )}
         </View>
 
@@ -784,39 +812,63 @@ const styles = StyleSheet.create({
   categoryButtonTextActive: {
     color: '#FFFFFF',
   },
+  photoListContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingRight: 4,
+  },
+  photoItemWrap: {
+    width: 100,
+    height: 100,
+    borderRadius: 12,
+    overflow: 'hidden',
+    position: 'relative',
+  },
+  photoThumb: {
+    width: '100%',
+    height: '100%',
+  },
+  photoRemoveBtn: {
+    position: 'absolute',
+    top: 4,
+    right: 4,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  photoRemoveIcon: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '600',
+  },
   photoUpload: {
-    width: 120,
-    height: 120,
+    width: 100,
+    height: 100,
     backgroundColor: '#FFF3E0',
     borderRadius: 12,
     justifyContent: 'center',
     alignItems: 'center',
-    overflow: 'hidden',
+    borderWidth: 2,
+    borderStyle: 'dashed',
+    borderColor: '#FFCC80',
   },
   uploadIcon: {
-    fontSize: 32,
-    marginBottom: 8,
+    fontSize: 28,
+    marginBottom: 4,
   },
   uploadText: {
-    fontSize: 14,
+    fontSize: 13,
     color: '#666',
+    fontWeight: '500',
   },
-  selectedImage: {
-    width: '100%',
-    height: '100%',
-  },
-  removeImageButton: {
-    marginTop: 8,
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    backgroundColor: '#FF4444',
-    borderRadius: 8,
-    alignSelf: 'flex-start',
-  },
-  removeImageText: {
+  photoHint: {
     fontSize: 12,
-    color: '#FFFFFF',
-    fontWeight: '600',
+    color: '#999',
+    marginTop: 8,
   },
   optionRow: {
     flexDirection: 'row',
@@ -843,63 +895,70 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
   },
   dropdown: {
-    backgroundColor: '#6B6B6B',
+    backgroundColor: COLORS.white,
     borderRadius: 12,
     paddingHorizontal: 16,
     paddingVertical: 14,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    borderWidth: 1.5,
+    borderColor: COLORS.lightGray,
   },
   dropdownText: {
     fontSize: 16,
-    color: '#FFFFFF',
+    color: COLORS.text,
     fontWeight: '500',
   },
   dropdownPlaceholder: {
-    color: '#CCCCCC',
+    color: COLORS.textSecondary,
   },
   dropdownIcon: {
     fontSize: 14,
-    color: '#FFFFFF',
+    color: COLORS.primary,
   },
   dropdownMenu: {
-    backgroundColor: '#6B6B6B',
+    backgroundColor: COLORS.white,
     borderRadius: 12,
     marginTop: 4,
     overflow: 'hidden',
+    borderWidth: 1.5,
+    borderColor: COLORS.lightGray,
   },
   dropdownItem: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 16,
     paddingVertical: 14,
-    backgroundColor: '#6B6B6B',
+    backgroundColor: COLORS.white,
   },
   dropdownItemSelected: {
-    backgroundColor: '#5A5A5A',
+    backgroundColor: COLORS.primary,
   },
   checkIcon: {
     fontSize: 18,
-    color: '#FFFFFF',
+    color: COLORS.primary,
     marginRight: 12,
     fontWeight: 'bold',
   },
   dropdownItemText: {
     fontSize: 16,
-    color: '#FFFFFF',
+    color: COLORS.text,
     fontWeight: '400',
   },
   dropdownItemTextSelected: {
-    fontWeight: '500',
+    fontWeight: '600',
+    color: COLORS.white,
   },
   input: {
-    backgroundColor: '#FFF3E0',
+    backgroundColor: COLORS.white,
     borderRadius: 12,
     paddingHorizontal: 16,
     paddingVertical: 14,
     fontSize: 16,
-    color: '#000',
+    color: COLORS.text,
+    borderWidth: 1.5,
+    borderColor: COLORS.lightGray,
   },
   textArea: {
     minHeight: 120,
@@ -909,9 +968,11 @@ const styles = StyleSheet.create({
   inputWithIcon: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFF3E0',
+    backgroundColor: COLORS.white,
     borderRadius: 12,
     paddingRight: 16,
+    borderWidth: 1.5,
+    borderColor: COLORS.lightGray,
   },
   locationRefreshButton: {
     paddingHorizontal: 16,
@@ -928,17 +989,17 @@ const styles = StyleSheet.create({
   inputWithIconField: {
     flex: 1,
     fontSize: 16,
-    color: '#000',
+    color: COLORS.text,
     paddingVertical: 14,
   },
   loadingText: {
     fontSize: 12,
-    color: '#FF8C42',
+    color: COLORS.primary,
     marginTop: 8,
     fontStyle: 'italic',
   },
   submitButton: {
-    backgroundColor: '#FF8C42',
+    backgroundColor: COLORS.primary,
     borderRadius: 12,
     paddingVertical: 16,
     alignItems: 'center',
@@ -947,7 +1008,7 @@ const styles = StyleSheet.create({
   submitButtonText: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: COLORS.white,
   },
 });
 

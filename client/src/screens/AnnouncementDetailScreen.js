@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useRef } from 'react';
 import {
   View,
   Text,
@@ -6,21 +6,37 @@ import {
   ScrollView,
   Image,
   TouchableOpacity,
+  Dimensions,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
+const IMAGE_GALLERY_HEIGHT = 320;
 
 const AnnouncementDetailScreen = ({ route, navigation }) => {
   const insets = useSafeAreaInsets();
   const { announcement } = route.params;
+  const imageScrollRef = useRef(null);
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
+
+  const images = announcement.images && announcement.images.length > 0
+    ? announcement.images
+    : [announcement.image];
 
   const tagLabel = announcement.tag || 'İlan';
   const tagColor = announcement.tagColor || '#FF8C42';
 
+  const onImageScroll = (e) => {
+    const offsetX = e.nativeEvent.contentOffset.x;
+    const index = Math.round(offsetX / SCREEN_WIDTH);
+    setCurrentImageIndex(index);
+  };
+
   return (
     <View style={styles.container}>
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
-        {/* Kategori Badge & Resim */}
-        <View style={styles.imageContainer}>
+        {/* Resim galerisi: yatay scroll, sayfa sayfa */}
+        <View style={[styles.imageContainer, { height: IMAGE_GALLERY_HEIGHT }]}>
           {/* Back Button */}
           <TouchableOpacity
             style={[styles.backButton, { top: insets.top + 12 }]}
@@ -29,18 +45,42 @@ const AnnouncementDetailScreen = ({ route, navigation }) => {
           >
             <Text style={styles.backIcon}>←</Text>
           </TouchableOpacity>
-          
-          <Image
-            source={{ uri: announcement.image }}
-            style={styles.mainImage}
-            resizeMode="cover"
-          />
+
+          <ScrollView
+            ref={imageScrollRef}
+            horizontal
+            pagingEnabled
+            showsHorizontalScrollIndicator={false}
+            onMomentumScrollEnd={onImageScroll}
+            style={styles.imageGalleryScroll}
+            contentContainerStyle={styles.imageGalleryContent}
+          >
+            {images.map((uri, index) => (
+              <View key={index} style={styles.imageSlide}>
+                <Image
+                  source={{ uri }}
+                  style={styles.galleryImage}
+                  resizeMode="cover"
+                />
+              </View>
+            ))}
+          </ScrollView>
+
           {/* Etiket: kartlarla aynı, resmin sol alt köşesinde */}
           <View style={[styles.detailTag, { backgroundColor: tagColor }]}>
             <Text style={styles.detailTagText} numberOfLines={1} ellipsizeMode="tail">
               {tagLabel}
             </Text>
           </View>
+
+          {/* Sayfa göstergesi (birden fazla resim varsa) */}
+          {images.length > 1 && (
+            <View style={styles.pageIndicator}>
+              <Text style={styles.pageIndicatorText}>
+                {currentImageIndex + 1} / {images.length}
+              </Text>
+            </View>
+          )}
         </View>
 
         {/* Başlık ve Zaman */}
@@ -178,9 +218,34 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '600',
   },
-  mainImage: {
-    width: '100%',
-    height: '100%',
+  imageGalleryScroll: {
+    flex: 1,
+  },
+  imageGalleryContent: {
+    flexGrow: 0,
+  },
+  imageSlide: {
+    width: SCREEN_WIDTH,
+    height: IMAGE_GALLERY_HEIGHT,
+  },
+  galleryImage: {
+    width: SCREEN_WIDTH,
+    height: IMAGE_GALLERY_HEIGHT,
+  },
+  pageIndicator: {
+    position: 'absolute',
+    bottom: 12,
+    right: 12,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+    zIndex: 1,
+  },
+  pageIndicatorText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '600',
   },
   content: {
     padding: 20,

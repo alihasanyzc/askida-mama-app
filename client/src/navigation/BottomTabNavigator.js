@@ -29,6 +29,8 @@ import AboutScreen from '../screens/AboutScreen';
 import HelpScreen from '../screens/HelpScreen';
 import PaymentScreen from '../screens/PaymentScreen';
 import ClinicDetailScreen from '../screens/ClinicDetailScreen';
+import EventDetailScreen from '../screens/EventDetailScreen';
+import EventsListScreen from '../screens/EventsListScreen';
 
 const Stack = createStackNavigator();
 
@@ -116,6 +118,8 @@ const ProfileStack = () => {
       <Stack.Screen name="Privacy" component={PrivacyScreen} />
       <Stack.Screen name="About" component={AboutScreen} />
       <Stack.Screen name="Help" component={HelpScreen} />
+      <Stack.Screen name="EventsList" component={EventsListScreen} />
+      <Stack.Screen name="EventDetail" component={EventDetailScreen} />
     </Stack.Navigator>
   );
 };

@@ -28,6 +28,11 @@ const MOCK_ANNOUNCEMENTS = [
     tag: 'Yaralı',
     tagColor: '#FF4444',
     image: 'https://images.unsplash.com/photo-1583511655857-d19b40a7a54e?w=800&q=80',
+    images: [
+      'https://images.unsplash.com/photo-1583511655857-d19b40a7a54e?w=800&q=80',
+      'https://images.unsplash.com/photo-1587300003388-59208cc962cb?w=800&q=80',
+      'https://images.unsplash.com/photo-1588943211346-0908a1fb0b01?w=800&q=80',
+    ],
     isOwner: true, // Bu ilan kullanıcının kendisine ait
   },
   {
@@ -41,6 +46,11 @@ const MOCK_ANNOUNCEMENTS = [
     tag: 'Kayıp',
     tagColor: '#FF8C42',
     image: 'https://images.unsplash.com/photo-1574158622682-e40e69881006?w=800&q=80',
+    images: [
+      'https://images.unsplash.com/photo-1574158622682-e40e69881006?w=800&q=80',
+      'https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba?w=800&q=80',
+      'https://images.unsplash.com/photo-1511044568932-338cba0ad803?w=800&q=80',
+    ],
     isOwner: false, // Başkasının ilanı
   },
   {
@@ -54,6 +64,11 @@ const MOCK_ANNOUNCEMENTS = [
     tag: 'Sahiplen',
     tagColor: '#4CAF50',
     image: 'https://images.unsplash.com/photo-1633722715463-d30f4f325e24?w=800&q=80',
+    images: [
+      'https://images.unsplash.com/photo-1633722715463-d30f4f325e24?w=800&q=80',
+      'https://images.unsplash.com/photo-1587300003388-59208cc962cb?w=800&q=80',
+      'https://images.unsplash.com/photo-1623387641168-d9803ddd3f35?w=800&q=80',
+    ],
     isOwner: true, // Bu ilan kullanıcının kendisine ait
     animalInfo: {
       type: 'köpek',
@@ -76,6 +91,10 @@ const MOCK_ANNOUNCEMENTS = [
     tag: 'İhbar',
     tagColor: '#FF8C42',
     image: 'https://images.unsplash.com/photo-1587300003388-59208cc962cb?w=800&q=80',
+    images: [
+      'https://images.unsplash.com/photo-1587300003388-59208cc962cb?w=800&q=80',
+      'https://images.unsplash.com/photo-1583511655857-d19b40a7a54e?w=800&q=80',
+    ],
     isOwner: false, // Başkasının ilanı
   },
   {
@@ -89,6 +108,11 @@ const MOCK_ANNOUNCEMENTS = [
     tag: 'Sahiplen',
     tagColor: '#4CAF50',
     image: 'https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba?w=800&q=80',
+    images: [
+      'https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba?w=800&q=80',
+      'https://images.unsplash.com/photo-1574158622682-e40e69881006?w=800&q=80',
+      'https://images.unsplash.com/photo-1511044568932-338cba0ad803?w=800&q=80',
+    ],
     isOwner: false, // Başkasının ilanı
     animalInfo: {
       type: 'Kedi',
