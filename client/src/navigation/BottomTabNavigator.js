@@ -31,6 +31,7 @@ import PaymentScreen from '../screens/PaymentScreen';
 import ClinicDetailScreen from '../screens/ClinicDetailScreen';
 import EventDetailScreen from '../screens/EventDetailScreen';
 import EventsListScreen from '../screens/EventsListScreen';
+import BlogDetailScreen from '../screens/BlogDetailScreen';
 
 const Stack = createStackNavigator();
 
@@ -120,6 +121,7 @@ const ProfileStack = () => {
       <Stack.Screen name="Help" component={HelpScreen} />
       <Stack.Screen name="EventsList" component={EventsListScreen} />
       <Stack.Screen name="EventDetail" component={EventDetailScreen} />
+      <Stack.Screen name="BlogDetail" component={BlogDetailScreen} />
     </Stack.Navigator>
   );
 };

@@ -15,6 +15,7 @@ import {
   PanResponder,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Entypo, Ionicons, FontAwesome, AntDesign, MaterialIcons } from '@expo/vector-icons';
 import { COLORS, SPACING, FONT_SIZES } from '../constants';
 
 const { width } = Dimensions.get('window');
@@ -35,7 +36,6 @@ const ProfileScreen = ({ navigation }) => {
       blogs: 24,
       followers: 1250,
       following: 432,
-      rank: 3,
     },
   };
 
@@ -48,6 +48,22 @@ const ProfileScreen = ({ navigation }) => {
     'https://images.unsplash.com/photo-1583511655857-d19b40a7a54e?w=400',
     'https://images.unsplash.com/photo-1560807707-8cc77767d783?w=400',
   ];
+
+  // Tüm postları BlogCard formatında listele (Instagram galerisi için)
+  const profileBlogs = userBlogs.map((image, index) => ({
+    author: { name: user.name, avatar: user.avatar },
+    date: 'Birkaç gün önce',
+    image,
+    title: '',
+    description: user.bio || 'Hayvan sever 🐾',
+    likes: 5 + (index % 30),
+    comments: index % 15,
+    category: 'Post',
+  }));
+
+  const openBlogGallery = (index) => {
+    navigation.navigate('BlogDetail', { blogs: profileBlogs, initialIndex: index });
+  };
 
   // Cover photo - rastgele hayvan temalı
   const coverPhoto = 'https://images.unsplash.com/photo-1450778869180-41d0601e046e?w=800';
@@ -78,42 +94,65 @@ const ProfileScreen = ({ navigation }) => {
   const menuItems = [
     { 
       id: 1, 
-      icon: '📅', 
+      iconLib: 'AntDesign', 
+      iconName: 'calendar', 
       title: 'Etkinlikler', 
       action: () => closeDrawer(() => navigation.navigate('EventsList'))
     },
     { 
       id: 2, 
-      icon: '✏️', 
+      iconLib: 'AntDesign', 
+      iconName: 'edit', 
       title: 'Profili Düzenle', 
       action: () => closeDrawer(() => navigation.navigate('EditProfile', { user }))
     },
     { 
       id: 3, 
-      icon: '🔒', 
+      iconLib: 'AntDesign', 
+      iconName: 'lock', 
       title: 'Gizlilik', 
       action: () => closeDrawer(() => navigation.navigate('Privacy'))
     },
     { 
       id: 4, 
-      icon: '📄', 
+      iconLib: 'FontAwesome', 
+      iconName: 'info-circle', 
       title: 'Hakkında', 
       action: () => closeDrawer(() => navigation.navigate('About'))
     },
     { 
       id: 5, 
-      icon: '❓', 
+      iconLib: 'Entypo', 
+      iconName: 'help', 
       title: 'Yardım', 
       action: () => closeDrawer(() => navigation.navigate('Help'))
     },
     { 
       id: 6, 
-      icon: '🚪', 
+      iconLib: 'MaterialIcons', 
+      iconName: 'logout', 
       title: 'Çıkış Yap', 
       action: () => closeDrawer(() => console.log('Çıkış')), 
       isDanger: true 
     },
   ];
+
+  const renderDrawerIcon = (item) => {
+    const iconColor = item.isDanger ? '#E53E3E' : COLORS.text;
+    const size = 22;
+    switch (item.iconLib) {
+      case 'AntDesign':
+        return <AntDesign name={item.iconName} size={size} color={iconColor} style={styles.drawerMenuIcon} />;
+      case 'FontAwesome':
+        return <FontAwesome name={item.iconName} size={size} color={iconColor} style={styles.drawerMenuIcon} />;
+      case 'Entypo':
+        return <Entypo name={item.iconName} size={size} color={iconColor} style={styles.drawerMenuIcon} />;
+      case 'MaterialIcons':
+        return <MaterialIcons name={item.iconName} size={size} color={iconColor} style={styles.drawerMenuIcon} />;
+      default:
+        return null;
+    }
+  };
 
   // PanResponder - Sağdan sola kaydırma hareketi
   const panResponder = useRef(
@@ -193,14 +232,6 @@ const ProfileScreen = ({ navigation }) => {
         <View style={styles.profileSection}>
           <Text style={styles.name}>{user.name}</Text>
           <Text style={styles.username}>@{user.username}</Text>
-          
-          {/* Rank Badge */}
-          <View style={styles.rankBadge}>
-            <Text style={styles.rankEmoji}>🏆</Text>
-            <Text style={styles.rankText}>
-              Hayvanseverler arasında {user.stats.rank}.
-            </Text>
-          </View>
 
           <Text style={styles.bio}>{user.bio}</Text>
 
@@ -242,19 +273,34 @@ const ProfileScreen = ({ navigation }) => {
             style={[styles.tab, activeTab === 'blogs' && styles.tabActive]}
             onPress={() => setActiveTab('blogs')}
           >
-            <Text style={[styles.tabIcon, activeTab === 'blogs' && styles.tabIconActive]}>📝</Text>
+            <Entypo
+              name="grid"
+              size={26}
+              color={activeTab === 'blogs' ? COLORS.primary : COLORS.gray}
+              style={activeTab === 'blogs' ? styles.tabIconActive : styles.tabIcon}
+            />
           </TouchableOpacity>
           <TouchableOpacity
             style={[styles.tab, activeTab === 'announcements' && styles.tabActive]}
             onPress={() => setActiveTab('announcements')}
           >
-            <Text style={[styles.tabIcon, activeTab === 'announcements' && styles.tabIconActive]}>📢</Text>
+            <Ionicons
+              name="megaphone-outline"
+              size={26}
+              color={activeTab === 'announcements' ? COLORS.primary : COLORS.gray}
+              style={activeTab === 'announcements' ? styles.tabIconActive : styles.tabIcon}
+            />
           </TouchableOpacity>
           <TouchableOpacity
             style={[styles.tab, activeTab === 'saved' && styles.tabActive]}
             onPress={() => setActiveTab('saved')}
           >
-            <Text style={[styles.tabIcon, activeTab === 'saved' && styles.tabIconActive]}>🔖</Text>
+            <FontAwesome
+              name="bookmark-o"
+              size={24}
+              color={activeTab === 'saved' ? COLORS.primary : COLORS.gray}
+              style={activeTab === 'saved' ? styles.tabIconActive : styles.tabIcon}
+            />
           </TouchableOpacity>
         </View>
 
@@ -262,7 +308,12 @@ const ProfileScreen = ({ navigation }) => {
         {activeTab === 'blogs' && (
           <View style={styles.blogGrid}>
             {userBlogs.map((image, index) => (
-              <TouchableOpacity key={index} style={styles.blogGridItem}>
+              <TouchableOpacity
+                key={index}
+                style={styles.blogGridItem}
+                onPress={() => openBlogGallery(index)}
+                activeOpacity={0.9}
+              >
                 <Image
                   source={{ uri: image }}
                   style={styles.blogGridImage}
@@ -346,7 +397,7 @@ const ProfileScreen = ({ navigation }) => {
                       }}
                       activeOpacity={0.7}
                     >
-                      <Text style={styles.drawerMenuIcon}>{item.icon}</Text>
+                      {renderDrawerIcon(item)}
                       <Text
                         style={[
                           styles.drawerMenuText,
@@ -438,24 +489,6 @@ const styles = StyleSheet.create({
     color: COLORS.gray,
     marginBottom: SPACING.md,
   },
-  rankBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#FFF3E0',
-    paddingHorizontal: SPACING.lg,
-    paddingVertical: SPACING.sm,
-    borderRadius: 20,
-    marginBottom: SPACING.md,
-  },
-  rankEmoji: {
-    fontSize: 20,
-    marginRight: SPACING.xs,
-  },
-  rankText: {
-    fontSize: FONT_SIZES.sm,
-    fontWeight: '600',
-    color: '#E67E22',
-  },
   bio: {
     fontSize: FONT_SIZES.md,
     color: COLORS.darkGray,
@@ -506,8 +539,7 @@ const styles = StyleSheet.create({
     borderBottomColor: COLORS.primary,
   },
   tabIcon: {
-    fontSize: 28,
-    opacity: 0.5,
+    opacity: 0.6,
   },
   tabIconActive: {
     opacity: 1,
@@ -628,9 +660,8 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFF5F5',
   },
   drawerMenuIcon: {
-    fontSize: 24,
     marginRight: SPACING.md,
-    width: 32,
+    width: 28,
   },
   drawerMenuText: {
     flex: 1,

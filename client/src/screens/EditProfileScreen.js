@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
+import { Entypo, Ionicons } from '@expo/vector-icons';
 import { COLORS, SPACING, FONT_SIZES } from '../constants';
 
 const EditProfileScreen = ({ route, navigation }) => {
@@ -113,10 +114,8 @@ const EditProfileScreen = ({ route, navigation }) => {
           onPress={() => navigation.goBack()}
           activeOpacity={0.7}
         >
-          <Text style={styles.backIcon}>←</Text>
+          <Ionicons name="arrow-back" size={24} color={COLORS.secondary} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Profili Düzenle</Text>
-        <View style={styles.headerSpacer} />
       </View>
 
       <ScrollView
@@ -137,7 +136,7 @@ const EditProfileScreen = ({ route, navigation }) => {
               onPress={pickCoverPhoto}
               activeOpacity={0.8}
             >
-              <Text style={styles.changeCoverIcon}>📷</Text>
+              <Entypo name="camera" size={18} color={COLORS.secondary} style={styles.changeCoverIcon} />
               <Text style={styles.changeCoverText}>Kapak Fotoğrafını Değiştir</Text>
             </TouchableOpacity>
           </ImageBackground>
@@ -150,7 +149,7 @@ const EditProfileScreen = ({ route, navigation }) => {
               onPress={pickAvatar}
               activeOpacity={0.8}
             >
-              <Text style={styles.changeAvatarIcon}>📷</Text>
+              <Entypo name="camera" size={16} color={COLORS.white} />
             </TouchableOpacity>
           </View>
         </View>
@@ -233,9 +232,9 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
     paddingHorizontal: SPACING.md,
     paddingVertical: SPACING.md,
+    paddingTop: SPACING.md,
     backgroundColor: COLORS.white,
     borderBottomWidth: 1,
     borderBottomColor: COLORS.accentLight,
@@ -247,18 +246,6 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.accentLight,
     justifyContent: 'center',
     alignItems: 'center',
-  },
-  backIcon: {
-    fontSize: 24,
-    color: COLORS.secondary,
-  },
-  headerTitle: {
-    fontSize: FONT_SIZES.xl,
-    fontWeight: '700',
-    color: COLORS.secondary,
-  },
-  headerSpacer: {
-    width: 40,
   },
   scrollView: {
     flex: 1,
@@ -298,7 +285,6 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   changeCoverIcon: {
-    fontSize: 18,
     marginRight: SPACING.xs,
   },
   changeCoverText: {
@@ -335,9 +321,6 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.2,
     shadowRadius: 4,
     elevation: 3,
-  },
-  changeAvatarIcon: {
-    fontSize: 16,
   },
   formSection: {
     marginTop: 60,

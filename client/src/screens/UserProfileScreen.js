@@ -33,7 +33,6 @@ const UserProfileScreen = ({ route, navigation }) => {
       blogs: userParam.stats?.blogs || 0,
       followers: userParam.stats?.followers || 0,
       following: userParam.stats?.following || 0,
-      rank: userParam.stats?.rank || 1,
     },
   };
 
@@ -98,14 +97,6 @@ const UserProfileScreen = ({ route, navigation }) => {
         <View style={styles.profileSection}>
           <Text style={styles.name}>{user.name}</Text>
           <Text style={styles.username}>@{user.username}</Text>
-          
-          {/* Rank Badge */}
-          <View style={styles.rankBadge}>
-            <Text style={styles.rankEmoji}>🏆</Text>
-            <Text style={styles.rankText}>
-              Hayvanseverler arasında {user.stats.rank}.
-            </Text>
-          </View>
 
           <Text style={styles.bio}>{user.bio}</Text>
 
@@ -292,24 +283,6 @@ const styles = StyleSheet.create({
     fontSize: FONT_SIZES.md,
     color: COLORS.gray,
     marginBottom: SPACING.md,
-  },
-  rankBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#FFF3E0',
-    paddingHorizontal: SPACING.lg,
-    paddingVertical: SPACING.sm,
-    borderRadius: 20,
-    marginBottom: SPACING.md,
-  },
-  rankEmoji: {
-    fontSize: 20,
-    marginRight: SPACING.xs,
-  },
-  rankText: {
-    fontSize: FONT_SIZES.sm,
-    fontWeight: '600',
-    color: '#E67E22',
   },
   bio: {
     fontSize: FONT_SIZES.md,
