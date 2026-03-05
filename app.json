@@ -1,8 +1,23 @@
 {
-  "android": {
-    "package": "com.anonymous.askidamama"
-  },
-  "ios": {
-    "bundleIdentifier": "com.anonymous.askidamama"
+  "expo": {
+    "name": "askida-mama",
+    "slug": "askida-mama",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.anonymous.askidamama"
+    },
+    "android": {
+      "package": "com.anonymous.askidamama",
+      "adaptiveIcon": {
+        "backgroundColor": "#ffffff"
+      }
+    },
+    "web": {}
   }
 }
