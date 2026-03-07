@@ -1,0 +1,331 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ==========================================
+// USER & PROFILE
+// ==========================================
+
+model Profile {
+  id          String   @id @default(uuid()) @db.Uuid
+  authId      String   @unique @map("auth_id") @db.Uuid // Supabase auth.users.id
+  email       String   @unique
+  fullName    String?  @map("full_name")
+  username    String?  @unique
+  avatarUrl   String?  @map("avatar_url")
+  bio         String?
+  phone       String?
+  role        UserRole @default(USER)
+  isActive    Boolean  @default(true) @map("is_active")
+  
+  // Address
+  city        String?
+  district    String?
+  address     String?
+  latitude    Float?
+  longitude   Float?
+
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  posts           Post[]
+  comments        Comment[]
+  likes           Like[]
+  donations       Donation[]
+  bowls           Bowl[]
+  announcements   Announcement[]
+  followers       Follow[]  @relation("following")
+  following       Follow[]  @relation("followers")
+  sentMessages    Message[] @relation("sentMessages")
+  receivedMessages Message[] @relation("receivedMessages")
+
+  @@map("profiles")
+}
+
+enum UserRole {
+  ADMIN
+  USER
+  DONOR
+  VETERINARIAN
+  SHELTER
+
+  @@map("user_role")
+}
+
+// ==========================================
+// SOCIAL - POSTS, COMMENTS, LIKES
+// ==========================================
+
+model Post {
+  id          String   @id @default(uuid()) @db.Uuid
+  authorId    String   @map("author_id") @db.Uuid
+  content     String
+  imageUrl    String?  @map("image_url")
+  category    PostCategory @default(GENERAL)
+  isActive    Boolean  @default(true) @map("is_active")
+
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  author      Profile   @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  comments    Comment[]
+  likes       Like[]
+
+  @@map("posts")
+}
+
+enum PostCategory {
+  GENERAL
+  ADOPTION
+  LOST_FOUND
+  HEALTH
+  FOOD
+  STORY
+
+  @@map("post_category")
+}
+
+model Comment {
+  id          String   @id @default(uuid()) @db.Uuid
+  postId      String   @map("post_id") @db.Uuid
+  authorId    String   @map("author_id") @db.Uuid
+  content     String
+  isActive    Boolean  @default(true) @map("is_active")
+
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  post        Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  author      Profile  @relation(fields: [authorId], references: [id], onDelete: Cascade)
+
+  @@map("comments")
+}
+
+model Like {
+  id          String   @id @default(uuid()) @db.Uuid
+  postId      String   @map("post_id") @db.Uuid
+  userId      String   @map("user_id") @db.Uuid
+
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  // Relations
+  post        Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user        Profile  @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([postId, userId])
+  @@map("likes")
+}
+
+model Follow {
+  id          String   @id @default(uuid()) @db.Uuid
+  followerId  String   @map("follower_id") @db.Uuid
+  followingId String   @map("following_id") @db.Uuid
+
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  // Relations
+  follower    Profile  @relation("followers", fields: [followerId], references: [id], onDelete: Cascade)
+  following   Profile  @relation("following", fields: [followingId], references: [id], onDelete: Cascade)
+
+  @@unique([followerId, followingId])
+  @@map("follows")
+}
+
+// ==========================================
+// DONATION & BOWLS
+// ==========================================
+
+model Donation {
+  id            String         @id @default(uuid()) @db.Uuid
+  donorId       String         @map("donor_id") @db.Uuid
+  amount        Decimal        @db.Decimal(10, 2)
+  type          DonationType
+  status        DonationStatus @default(PENDING)
+  description   String?
+  
+  // Payment info
+  paymentMethod String?        @map("payment_method")
+  transactionId String?        @map("transaction_id")
+
+  createdAt     DateTime       @default(now()) @map("created_at")
+  updatedAt     DateTime       @updatedAt @map("updated_at")
+
+  // Relations
+  donor         Profile        @relation(fields: [donorId], references: [id], onDelete: Cascade)
+
+  @@map("donations")
+}
+
+enum DonationType {
+  FOOD
+  MEDICAL
+  MONEY
+  SUPPLY
+
+  @@map("donation_type")
+}
+
+enum DonationStatus {
+  PENDING
+  COMPLETED
+  CANCELLED
+  REFUNDED
+
+  @@map("donation_status")
+}
+
+model Bowl {
+  id          String     @id @default(uuid()) @db.Uuid
+  ownerId     String     @map("owner_id") @db.Uuid
+  name        String
+  description String?
+  imageUrl    String?    @map("image_url")
+  latitude    Float
+  longitude   Float
+  address     String?
+  status      BowlStatus @default(ACTIVE)
+  qrCode      String?    @unique @map("qr_code")
+  
+  // Capacity
+  capacity    Int        @default(100) // percentage
+  lastFilled  DateTime?  @map("last_filled")
+
+  createdAt   DateTime   @default(now()) @map("created_at")
+  updatedAt   DateTime   @updatedAt @map("updated_at")
+
+  // Relations
+  owner       Profile    @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+
+  @@map("bowls")
+}
+
+enum BowlStatus {
+  ACTIVE
+  INACTIVE
+  MAINTENANCE
+
+  @@map("bowl_status")
+}
+
+// ==========================================
+// ANNOUNCEMENTS & EVENTS
+// ==========================================
+
+model Announcement {
+  id          String             @id @default(uuid()) @db.Uuid
+  authorId    String             @map("author_id") @db.Uuid
+  title       String
+  content     String
+  imageUrl    String?            @map("image_url")
+  category    AnnouncementCategory
+  isActive    Boolean            @default(true) @map("is_active")
+
+  createdAt   DateTime           @default(now()) @map("created_at")
+  updatedAt   DateTime           @updatedAt @map("updated_at")
+
+  // Relations
+  author      Profile            @relation(fields: [authorId], references: [id], onDelete: Cascade)
+
+  @@map("announcements")
+}
+
+enum AnnouncementCategory {
+  ADOPTION
+  LOST
+  FOUND
+  URGENT
+  GENERAL
+
+  @@map("announcement_category")
+}
+
+model Event {
+  id          String    @id @default(uuid()) @db.Uuid
+  title       String
+  description String
+  imageUrl    String?   @map("image_url")
+  date        DateTime
+  endDate     DateTime? @map("end_date")
+  location    String?
+  latitude    Float?
+  longitude   Float?
+  isActive    Boolean   @default(true) @map("is_active")
+
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  @@map("events")
+}
+
+// ==========================================
+// BLOG & CLINICS
+// ==========================================
+
+model Blog {
+  id          String   @id @default(uuid()) @db.Uuid
+  title       String
+  content     String
+  summary     String?
+  imageUrl    String?  @map("image_url")
+  category    String?
+  author      String?
+  isActive    Boolean  @default(true) @map("is_active")
+
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@map("blogs")
+}
+
+model Clinic {
+  id          String   @id @default(uuid()) @db.Uuid
+  name        String
+  description String?
+  imageUrl    String?  @map("image_url")
+  phone       String?
+  email       String?
+  website     String?
+  address     String?
+  city        String?
+  district    String?
+  latitude    Float?
+  longitude   Float?
+  rating      Float?   @default(0)
+  isActive    Boolean  @default(true) @map("is_active")
+
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@map("clinics")
+}
+
+// ==========================================
+// MESSAGING
+// ==========================================
+
+model Message {
+  id          String   @id @default(uuid()) @db.Uuid
+  senderId    String   @map("sender_id") @db.Uuid
+  receiverId  String   @map("receiver_id") @db.Uuid
+  content     String
+  isRead      Boolean  @default(false) @map("is_read")
+
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  // Relations
+  sender      Profile  @relation("sentMessages", fields: [senderId], references: [id], onDelete: Cascade)
+  receiver    Profile  @relation("receivedMessages", fields: [receiverId], references: [id], onDelete: Cascade)
+
+  @@map("messages")
+}
