@@ -53,3 +53,7 @@ dist/
 
 # Test coverage
 coverage/
+
+# Private local docs
+README.md
+server/ARCHITECTURE.md
