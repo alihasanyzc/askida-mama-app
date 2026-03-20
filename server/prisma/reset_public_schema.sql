@@ -1,0 +1,25 @@
+DROP TABLE IF EXISTS public.event_registrations CASCADE;
+DROP TABLE IF EXISTS public.badges CASCADE;
+DROP TABLE IF EXISTS public.subscriptions CASCADE;
+DROP TABLE IF EXISTS public.announcement_images CASCADE;
+DROP TABLE IF EXISTS public.announcements CASCADE;
+DROP TABLE IF EXISTS public.donations CASCADE;
+DROP TABLE IF EXISTS public.events CASCADE;
+DROP TABLE IF EXISTS public.clinics CASCADE;
+DROP TABLE IF EXISTS public.products CASCADE;
+DROP TABLE IF EXISTS public.bowl_status_logs CASCADE;
+DROP TABLE IF EXISTS public.bowls CASCADE;
+DROP TABLE IF EXISTS public.follows CASCADE;
+DROP TABLE IF EXISTS public.post_saves CASCADE;
+DROP TABLE IF EXISTS public.comment_likes CASCADE;
+DROP TABLE IF EXISTS public.post_comments CASCADE;
+DROP TABLE IF EXISTS public.post_likes CASCADE;
+DROP TABLE IF EXISTS public.posts CASCADE;
+DROP TABLE IF EXISTS public.profiles CASCADE;
+
+DROP TABLE IF EXISTS public.blogs CASCADE;
+DROP TABLE IF EXISTS public.likes CASCADE;
+DROP TABLE IF EXISTS public.comments CASCADE;
+DROP TABLE IF EXISTS public.messages CASCADE;
+
+DROP FUNCTION IF EXISTS public.set_updated_at() CASCADE;

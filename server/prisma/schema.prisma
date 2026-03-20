@@ -1,6 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -10,322 +7,350 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// ==========================================
-// USER & PROFILE
-// ==========================================
-
 model Profile {
-  id          String   @id @default(uuid()) @db.Uuid
-  authId      String   @unique @map("auth_id") @db.Uuid // Supabase auth.users.id
-  email       String   @unique
-  fullName    String?  @map("full_name")
-  username    String?  @unique
-  avatarUrl   String?  @map("avatar_url")
-  bio         String?
-  phone       String?
-  role        UserRole @default(USER)
-  isActive    Boolean  @default(true) @map("is_active")
-  
-  // Address
-  city        String?
-  district    String?
-  address     String?
-  latitude    Float?
-  longitude   Float?
-
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
-
-  // Relations
-  posts           Post[]
-  comments        Comment[]
-  likes           Like[]
-  donations       Donation[]
-  bowls           Bowl[]
-  announcements   Announcement[]
-  followers       Follow[]  @relation("following")
-  following       Follow[]  @relation("followers")
-  sentMessages    Message[] @relation("sentMessages")
-  receivedMessages Message[] @relation("receivedMessages")
+  id                         String              @id @db.Uuid
+  full_name                  String              @db.VarChar(100)
+  username                   String              @unique @db.VarChar(50)
+  avatar_url                 String?
+  cover_photo_url            String?
+  bio                        String?             @db.VarChar(150)
+  phone                      String?             @db.VarChar(20)
+  role                       String              @default("user")
+  created_at                 DateTime?           @default(now()) @db.Timestamptz(6)
+  updated_at                 DateTime?           @updatedAt @db.Timestamptz(6)
+  posts                      Post[]
+  post_likes                 PostLike[]
+  post_comments              PostComment[]
+  comment_likes              CommentLike[]
+  post_saves                 PostSave[]
+  follows_as_follower        Follow[]            @relation("follows_follower_idToprofiles")
+  follows_as_following       Follow[]            @relation("follows_following_idToprofiles")
+  bowls_last_updated         Bowl[]              @relation("bowls_last_updated_byToprofiles")
+  bowl_status_logs           BowlStatusLog[]
+  donations                  Donation[]
+  announcements              Announcement[]
+  products                   Product[]
+  clinics                    Clinic[]
+  events                     Event[]
+  subscriptions              Subscription?
+  badges                     Badge[]
+  event_registrations        EventRegistration[] @relation("event_registrations_user_idToprofiles")
+  reviewed_registrations     EventRegistration[] @relation("event_registrations_reviewed_byToprofiles")
 
   @@map("profiles")
 }
 
-enum UserRole {
-  ADMIN
-  USER
-  DONOR
-  VETERINARIAN
-  SHELTER
-
-  @@map("user_role")
-}
-
-// ==========================================
-// SOCIAL - POSTS, COMMENTS, LIKES
-// ==========================================
-
 model Post {
-  id          String   @id @default(uuid()) @db.Uuid
-  authorId    String   @map("author_id") @db.Uuid
-  content     String
-  imageUrl    String?  @map("image_url")
-  category    PostCategory @default(GENERAL)
-  isActive    Boolean  @default(true) @map("is_active")
+  id            String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id       String        @db.Uuid
+  image_url     String
+  content       String
+  category      String?       @db.VarChar(50)
+  is_priority   Boolean       @default(false)
+  created_at    DateTime?     @default(now()) @db.Timestamptz(6)
+  updated_at    DateTime?     @updatedAt @db.Timestamptz(6)
+  user          Profile       @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  post_likes    PostLike[]
+  post_comments PostComment[]
+  post_saves    PostSave[]
 
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
-
-  // Relations
-  author      Profile   @relation(fields: [authorId], references: [id], onDelete: Cascade)
-  comments    Comment[]
-  likes       Like[]
-
+  @@index([user_id])
   @@map("posts")
 }
 
-enum PostCategory {
-  GENERAL
-  ADOPTION
-  LOST_FOUND
-  HEALTH
-  FOOD
-  STORY
+model PostLike {
+  id         String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  post_id    String    @db.Uuid
+  user_id    String    @db.Uuid
+  created_at DateTime? @default(now()) @db.Timestamptz(6)
+  post       Post      @relation(fields: [post_id], references: [id], onDelete: Cascade)
+  user       Profile   @relation(fields: [user_id], references: [id], onDelete: Cascade)
 
-  @@map("post_category")
+  @@unique([post_id, user_id])
+  @@index([post_id])
+  @@index([user_id])
+  @@map("post_likes")
 }
 
-model Comment {
-  id          String   @id @default(uuid()) @db.Uuid
-  postId      String   @map("post_id") @db.Uuid
-  authorId    String   @map("author_id") @db.Uuid
-  content     String
-  isActive    Boolean  @default(true) @map("is_active")
+model PostComment {
+  id            String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  post_id       String        @db.Uuid
+  user_id       String        @db.Uuid
+  text          String
+  created_at    DateTime?     @default(now()) @db.Timestamptz(6)
+  post          Post          @relation(fields: [post_id], references: [id], onDelete: Cascade)
+  user          Profile       @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  comment_likes CommentLike[]
 
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
-
-  // Relations
-  post        Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
-  author      Profile  @relation(fields: [authorId], references: [id], onDelete: Cascade)
-
-  @@map("comments")
+  @@index([post_id])
+  @@index([user_id])
+  @@map("post_comments")
 }
 
-model Like {
-  id          String   @id @default(uuid()) @db.Uuid
-  postId      String   @map("post_id") @db.Uuid
-  userId      String   @map("user_id") @db.Uuid
+model CommentLike {
+  id         String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  comment_id String      @db.Uuid
+  user_id    String      @db.Uuid
+  created_at DateTime?   @default(now()) @db.Timestamptz(6)
+  comment    PostComment @relation(fields: [comment_id], references: [id], onDelete: Cascade)
+  user       Profile     @relation(fields: [user_id], references: [id], onDelete: Cascade)
 
-  createdAt   DateTime @default(now()) @map("created_at")
+  @@unique([comment_id, user_id])
+  @@index([comment_id])
+  @@index([user_id])
+  @@map("comment_likes")
+}
 
-  // Relations
-  post        Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
-  user        Profile  @relation(fields: [userId], references: [id], onDelete: Cascade)
+model PostSave {
+  id         String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  post_id    String    @db.Uuid
+  user_id    String    @db.Uuid
+  created_at DateTime? @default(now()) @db.Timestamptz(6)
+  post       Post      @relation(fields: [post_id], references: [id], onDelete: Cascade)
+  user       Profile   @relation(fields: [user_id], references: [id], onDelete: Cascade)
 
-  @@unique([postId, userId])
-  @@map("likes")
+  @@unique([post_id, user_id])
+  @@index([post_id])
+  @@index([user_id])
+  @@map("post_saves")
 }
 
 model Follow {
-  id          String   @id @default(uuid()) @db.Uuid
-  followerId  String   @map("follower_id") @db.Uuid
-  followingId String   @map("following_id") @db.Uuid
+  id           String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  follower_id  String    @db.Uuid
+  following_id String    @db.Uuid
+  created_at   DateTime? @default(now()) @db.Timestamptz(6)
+  follower     Profile   @relation("follows_follower_idToprofiles", fields: [follower_id], references: [id], onDelete: Cascade)
+  following    Profile   @relation("follows_following_idToprofiles", fields: [following_id], references: [id], onDelete: Cascade)
 
-  createdAt   DateTime @default(now()) @map("created_at")
-
-  // Relations
-  follower    Profile  @relation("followers", fields: [followerId], references: [id], onDelete: Cascade)
-  following   Profile  @relation("following", fields: [followingId], references: [id], onDelete: Cascade)
-
-  @@unique([followerId, followingId])
+  @@unique([follower_id, following_id])
+  @@index([follower_id])
+  @@index([following_id])
   @@map("follows")
 }
 
-// ==========================================
-// DONATION & BOWLS
-// ==========================================
-
-model Donation {
-  id            String         @id @default(uuid()) @db.Uuid
-  donorId       String         @map("donor_id") @db.Uuid
-  amount        Decimal        @db.Decimal(10, 2)
-  type          DonationType
-  status        DonationStatus @default(PENDING)
-  description   String?
-  
-  // Payment info
-  paymentMethod String?        @map("payment_method")
-  transactionId String?        @map("transaction_id")
-
-  createdAt     DateTime       @default(now()) @map("created_at")
-  updatedAt     DateTime       @updatedAt @map("updated_at")
-
-  // Relations
-  donor         Profile        @relation(fields: [donorId], references: [id], onDelete: Cascade)
-
-  @@map("donations")
-}
-
-enum DonationType {
-  FOOD
-  MEDICAL
-  MONEY
-  SUPPLY
-
-  @@map("donation_type")
-}
-
-enum DonationStatus {
-  PENDING
-  COMPLETED
-  CANCELLED
-  REFUNDED
-
-  @@map("donation_status")
-}
-
 model Bowl {
-  id          String     @id @default(uuid()) @db.Uuid
-  ownerId     String     @map("owner_id") @db.Uuid
-  name        String
-  description String?
-  imageUrl    String?    @map("image_url")
-  latitude    Float
-  longitude   Float
-  address     String?
-  status      BowlStatus @default(ACTIVE)
-  qrCode      String?    @unique @map("qr_code")
-  
-  // Capacity
-  capacity    Int        @default(100) // percentage
-  lastFilled  DateTime?  @map("last_filled")
+  id                String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  qr_code           String          @unique @db.VarChar(20)
+  status            String          @default("unknown")
+  latitude          Decimal         @db.Decimal(10, 7)
+  longitude         Decimal         @db.Decimal(10, 7)
+  address           String?
+  city              String?         @db.VarChar(50)
+  district          String?         @db.VarChar(50)
+  location_note     String?         @db.VarChar(200)
+  last_updated_by   String?         @db.Uuid
+  created_at        DateTime?       @default(now()) @db.Timestamptz(6)
+  updated_at        DateTime?       @updatedAt @db.Timestamptz(6)
+  last_updated_user Profile?        @relation("bowls_last_updated_byToprofiles", fields: [last_updated_by], references: [id], onDelete: SetNull)
+  bowl_status_logs  BowlStatusLog[]
+  donations         Donation[]
 
-  createdAt   DateTime   @default(now()) @map("created_at")
-  updatedAt   DateTime   @updatedAt @map("updated_at")
-
-  // Relations
-  owner       Profile    @relation(fields: [ownerId], references: [id], onDelete: Cascade)
-
+  @@index([last_updated_by])
   @@map("bowls")
 }
 
-enum BowlStatus {
-  ACTIVE
-  INACTIVE
-  MAINTENANCE
+model BowlStatusLog {
+  id                String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  bowl_id           String    @db.Uuid
+  updated_by        String    @db.Uuid
+  old_status        String?
+  new_status        String
+  old_latitude      Decimal?  @db.Decimal(10, 7)
+  old_longitude     Decimal?  @db.Decimal(10, 7)
+  new_latitude      Decimal?  @db.Decimal(10, 7)
+  new_longitude     Decimal?  @db.Decimal(10, 7)
+  new_address       String?
+  new_location_note String?   @db.VarChar(200)
+  source            String    @default("qr")
+  created_at        DateTime? @default(now()) @db.Timestamptz(6)
+  bowl              Bowl      @relation(fields: [bowl_id], references: [id], onDelete: Cascade)
+  updater           Profile   @relation(fields: [updated_by], references: [id])
 
-  @@map("bowl_status")
+  @@index([bowl_id])
+  @@index([updated_by])
+  @@map("bowl_status_logs")
 }
 
-// ==========================================
-// ANNOUNCEMENTS & EVENTS
-// ==========================================
+model Product {
+  id             String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name           String      @db.VarChar(150)
+  description    String
+  image_url      String
+  category       String
+  price_per_kg   Decimal     @db.Decimal(10, 2)
+  weight         String      @default("1 kg") @db.VarChar(20)
+  nutrition_info String?
+  is_active      Boolean     @default(true)
+  created_by     String      @db.Uuid
+  created_at     DateTime?   @default(now()) @db.Timestamptz(6)
+  updated_at     DateTime?   @updatedAt @db.Timestamptz(6)
+  creator        Profile     @relation(fields: [created_by], references: [id])
+  donations      Donation[]
 
-model Announcement {
-  id          String             @id @default(uuid()) @db.Uuid
-  authorId    String             @map("author_id") @db.Uuid
-  title       String
-  content     String
-  imageUrl    String?            @map("image_url")
-  category    AnnouncementCategory
-  isActive    Boolean            @default(true) @map("is_active")
-
-  createdAt   DateTime           @default(now()) @map("created_at")
-  updatedAt   DateTime           @updatedAt @map("updated_at")
-
-  // Relations
-  author      Profile            @relation(fields: [authorId], references: [id], onDelete: Cascade)
-
-  @@map("announcements")
-}
-
-enum AnnouncementCategory {
-  ADOPTION
-  LOST
-  FOUND
-  URGENT
-  GENERAL
-
-  @@map("announcement_category")
-}
-
-model Event {
-  id          String    @id @default(uuid()) @db.Uuid
-  title       String
-  description String
-  imageUrl    String?   @map("image_url")
-  date        DateTime
-  endDate     DateTime? @map("end_date")
-  location    String?
-  latitude    Float?
-  longitude   Float?
-  isActive    Boolean   @default(true) @map("is_active")
-
-  createdAt   DateTime  @default(now()) @map("created_at")
-  updatedAt   DateTime  @updatedAt @map("updated_at")
-
-  @@map("events")
-}
-
-// ==========================================
-// BLOG & CLINICS
-// ==========================================
-
-model Blog {
-  id          String   @id @default(uuid()) @db.Uuid
-  title       String
-  content     String
-  summary     String?
-  imageUrl    String?  @map("image_url")
-  category    String?
-  author      String?
-  isActive    Boolean  @default(true) @map("is_active")
-
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
-
-  @@map("blogs")
+  @@index([created_by])
+  @@map("products")
 }
 
 model Clinic {
-  id          String   @id @default(uuid()) @db.Uuid
-  name        String
-  description String?
-  imageUrl    String?  @map("image_url")
-  phone       String?
-  email       String?
-  website     String?
-  address     String?
-  city        String?
-  district    String?
-  latitude    Float?
-  longitude   Float?
-  rating      Float?   @default(0)
-  isActive    Boolean  @default(true) @map("is_active")
+  id             String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name           String      @db.VarChar(150)
+  description    String
+  image_url      String
+  latitude       Decimal     @db.Decimal(10, 7)
+  longitude      Decimal     @db.Decimal(10, 7)
+  address        String?
+  city           String?     @db.VarChar(50)
+  district       String?     @db.VarChar(50)
+  location_note  String?     @db.VarChar(200)
+  is_active      Boolean     @default(true)
+  created_by     String      @db.Uuid
+  created_at     DateTime?   @default(now()) @db.Timestamptz(6)
+  updated_at     DateTime?   @updatedAt @db.Timestamptz(6)
+  creator        Profile     @relation(fields: [created_by], references: [id])
+  donations      Donation[]
 
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
-
+  @@index([created_by])
   @@map("clinics")
 }
 
-// ==========================================
-// MESSAGING
-// ==========================================
+model Donation {
+  id               String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id          String    @db.Uuid
+  type             String
+  amount           Decimal   @db.Decimal(10, 2)
+  product_id       String?   @db.Uuid
+  product_name     String?   @db.VarChar(100)
+  product_quantity Int?
+  clinic_id        String?   @db.Uuid
+  clinic_name      String?   @db.VarChar(100)
+  bowl_id          String?   @db.Uuid
+  payment_method   String?   @db.VarChar(20)
+  status           String    @default("completed")
+  created_at       DateTime? @default(now()) @db.Timestamptz(6)
+  user             Profile   @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  product          Product?  @relation(fields: [product_id], references: [id])
+  clinic           Clinic?   @relation(fields: [clinic_id], references: [id])
+  bowl             Bowl?     @relation(fields: [bowl_id], references: [id])
 
-model Message {
-  id          String   @id @default(uuid()) @db.Uuid
-  senderId    String   @map("sender_id") @db.Uuid
-  receiverId  String   @map("receiver_id") @db.Uuid
-  content     String
-  isRead      Boolean  @default(false) @map("is_read")
+  @@index([user_id])
+  @@index([product_id])
+  @@index([clinic_id])
+  @@index([bowl_id])
+  @@map("donations")
+}
 
-  createdAt   DateTime @default(now()) @map("created_at")
+model Announcement {
+  id                 String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id            String              @db.Uuid
+  category           String
+  title              String              @db.VarChar(150)
+  description        String
+  latitude           Decimal             @db.Decimal(10, 7)
+  longitude          Decimal             @db.Decimal(10, 7)
+  address            String?
+  city               String?             @db.VarChar(50)
+  district           String?             @db.VarChar(50)
+  location_note      String?             @db.VarChar(200)
+  phone              String              @db.VarChar(20)
+  status             String              @default("active")
+  is_priority        Boolean             @default(false)
+  report_type        String?             @db.VarChar(30)
+  animal_type        String?             @db.VarChar(10)
+  age                String?             @db.VarChar(15)
+  gender             String?             @db.VarChar(10)
+  neutered           String?             @db.VarChar(5)
+  vaccination        String?             @db.VarChar(20)
+  health_status      String?             @db.VarChar(10)
+  environment        String?             @db.VarChar(10)
+  created_at         DateTime?           @default(now()) @db.Timestamptz(6)
+  updated_at         DateTime?           @updatedAt @db.Timestamptz(6)
+  user               Profile             @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  announcement_images AnnouncementImage[]
 
-  // Relations
-  sender      Profile  @relation("sentMessages", fields: [senderId], references: [id], onDelete: Cascade)
-  receiver    Profile  @relation("receivedMessages", fields: [receiverId], references: [id], onDelete: Cascade)
+  @@index([user_id])
+  @@map("announcements")
+}
 
-  @@map("messages")
+model AnnouncementImage {
+  id              String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  announcement_id String       @db.Uuid
+  image_url       String
+  display_order   Int          @default(0)
+  created_at      DateTime?    @default(now()) @db.Timestamptz(6)
+  announcement    Announcement @relation(fields: [announcement_id], references: [id], onDelete: Cascade)
+
+  @@index([announcement_id])
+  @@map("announcement_images")
+}
+
+model Event {
+  id                  String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  title               String              @db.VarChar(150)
+  description         String
+  image_url           String
+  organizer           String              @db.VarChar(150)
+  event_date          DateTime            @db.Timestamptz(6)
+  latitude            Decimal             @db.Decimal(10, 7)
+  longitude           Decimal             @db.Decimal(10, 7)
+  address             String?
+  city                String?             @db.VarChar(50)
+  district            String?             @db.VarChar(50)
+  location_note       String?             @db.VarChar(200)
+  status              String              @default("upcoming")
+  is_active           Boolean             @default(true)
+  created_by          String              @db.Uuid
+  created_at          DateTime?           @default(now()) @db.Timestamptz(6)
+  updated_at          DateTime?           @updatedAt @db.Timestamptz(6)
+  creator             Profile             @relation(fields: [created_by], references: [id])
+  event_registrations EventRegistration[]
+
+  @@index([created_by])
+  @@map("events")
+}
+
+model Subscription {
+  id             String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id        String    @unique @db.Uuid
+  plan           String
+  amount         Decimal   @db.Decimal(10, 2)
+  start_date     DateTime  @default(now()) @db.Timestamptz(6)
+  end_date       DateTime  @db.Timestamptz(6)
+  payment_method String?   @db.VarChar(20)
+  created_at     DateTime? @default(now()) @db.Timestamptz(6)
+  user           Profile   @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@map("subscriptions")
+}
+
+model Badge {
+  id        String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id   String    @db.Uuid
+  type      String
+  earned_at DateTime? @default(now()) @db.Timestamptz(6)
+  user      Profile   @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@unique([user_id, type])
+  @@index([user_id])
+  @@map("badges")
+}
+
+model EventRegistration {
+  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  event_id    String    @db.Uuid
+  user_id     String    @db.Uuid
+  email       String    @db.VarChar(150)
+  status      String    @default("pending")
+  reviewed_by String?   @db.Uuid
+  reviewed_at DateTime? @db.Timestamptz(6)
+  created_at  DateTime? @default(now()) @db.Timestamptz(6)
+  event       Event     @relation(fields: [event_id], references: [id], onDelete: Cascade)
+  user        Profile   @relation("event_registrations_user_idToprofiles", fields: [user_id], references: [id], onDelete: Cascade)
+  reviewer    Profile?  @relation("event_registrations_reviewed_byToprofiles", fields: [reviewed_by], references: [id])
+
+  @@unique([event_id, user_id])
+  @@index([event_id])
+  @@index([user_id])
+  @@index([reviewed_by])
+  @@map("event_registrations")
 }
