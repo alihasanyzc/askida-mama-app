@@ -26,3 +26,8 @@ export type UpdateProfileInput = {
   bio?: string | null;
   phone?: string | null;
 };
+
+export type UploadProfileImageResult = {
+  image_url: string;
+  profile: ProfileRecord;
+};

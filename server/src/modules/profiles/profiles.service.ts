@@ -1,5 +1,6 @@
 import { ConflictError } from '../../common/errors/base-error.js';
 import { profilesRepository } from './profiles.repository.js';
+import { profilesStorage } from './profiles.storage.js';
 import type { UpdateProfileInput } from './profiles.type.js';
 
 export const profilesService = {
@@ -17,5 +18,39 @@ export const profilesService = {
     }
 
     return profilesRepository.update(userId, payload);
+  },
+
+  async uploadAvatar(userId: string, file: Express.Multer.File) {
+    const imageUrl = await profilesStorage.uploadProfileImage({
+      userId,
+      type: 'avatar',
+      file,
+    });
+
+    const profile = await profilesRepository.update(userId, {
+      avatar_url: imageUrl,
+    });
+
+    return {
+      image_url: imageUrl,
+      profile,
+    };
+  },
+
+  async uploadCoverPhoto(userId: string, file: Express.Multer.File) {
+    const imageUrl = await profilesStorage.uploadProfileImage({
+      userId,
+      type: 'cover',
+      file,
+    });
+
+    const profile = await profilesRepository.update(userId, {
+      cover_photo_url: imageUrl,
+    });
+
+    return {
+      image_url: imageUrl,
+      profile,
+    };
   },
 };

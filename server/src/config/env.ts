@@ -14,6 +14,8 @@ type EnvShape = {
   CORS_ORIGIN: string;
   RATE_LIMIT_WINDOW_MS: number;
   RATE_LIMIT_MAX: number;
+  PROFILE_MEDIA_BUCKET: string;
+  PROFILE_MEDIA_MAX_FILE_SIZE_MB: number;
 };
 
 const envSchema = Joi.object<EnvShape>({
@@ -30,6 +32,8 @@ const envSchema = Joi.object<EnvShape>({
   CORS_ORIGIN: Joi.string().default('http://localhost:19006'),
   RATE_LIMIT_WINDOW_MS: Joi.number().integer().positive().default(900000),
   RATE_LIMIT_MAX: Joi.number().integer().positive().default(100),
+  PROFILE_MEDIA_BUCKET: Joi.string().trim().default('profile-media'),
+  PROFILE_MEDIA_MAX_FILE_SIZE_MB: Joi.number().integer().positive().default(5),
 })
   .unknown(true)
   .required();
@@ -55,4 +59,6 @@ export const env: Readonly<EnvShape> = Object.freeze({
   CORS_ORIGIN: value.CORS_ORIGIN,
   RATE_LIMIT_WINDOW_MS: value.RATE_LIMIT_WINDOW_MS,
   RATE_LIMIT_MAX: value.RATE_LIMIT_MAX,
+  PROFILE_MEDIA_BUCKET: value.PROFILE_MEDIA_BUCKET,
+  PROFILE_MEDIA_MAX_FILE_SIZE_MB: value.PROFILE_MEDIA_MAX_FILE_SIZE_MB,
 });
