@@ -1,6 +1,10 @@
 import Joi from 'joi';
 
-import type { CreatePostInput, UpdatePostInput } from './posts.type.js';
+import type {
+  CreatePostCommentInput,
+  CreatePostInput,
+  UpdatePostInput,
+} from './posts.type.js';
 
 export const createPostSchema = Joi.object<CreatePostInput>({
   image_url: Joi.string().uri().required(),
@@ -15,3 +19,7 @@ export const updatePostSchema = Joi.object<UpdatePostInput>({
 })
   .min(1)
   .required();
+
+export const createPostCommentSchema = Joi.object<CreatePostCommentInput>({
+  text: Joi.string().trim().min(1).required(),
+});

@@ -1,10 +1,15 @@
 import { Prisma } from '@prisma/client';
 
-import { BadRequestError, NotFoundError } from '../../common/errors/base-error.js';
+import {
+  BadRequestError,
+  ConflictError,
+  NotFoundError,
+} from '../../common/errors/base-error.js';
 import { prisma } from '../../config/prisma.js';
 import type {
   CreateProfileInput,
   ProfileRecord,
+  ProfileSummaryRecord,
   UpdateProfileInput,
 } from './profiles.type.js';
 
@@ -24,6 +29,28 @@ function mapProfile(record: {
     ...record,
     created_at: record.created_at?.toISOString() ?? null,
     updated_at: record.updated_at?.toISOString() ?? null,
+  };
+}
+
+function mapProfileSummary(
+  record: {
+    id: string;
+    full_name: string;
+    username: string;
+    avatar_url: string | null;
+    follows_as_following?: Array<{ id: string }>;
+  },
+  fallbackIsFollowing = false,
+): ProfileSummaryRecord {
+  return {
+    id: record.id,
+    full_name: record.full_name,
+    username: record.username,
+    avatar_url: record.avatar_url,
+    is_following:
+      record.follows_as_following !== undefined
+        ? Boolean(record.follows_as_following.length)
+        : fallbackIsFollowing,
   };
 }
 
@@ -118,5 +145,199 @@ export const profilesRepository = {
 
       throw normalizeProfileError(error);
     }
+  },
+
+  async getStats(userId: string, viewerId?: string) {
+    const data = await prisma.profile.findUnique({
+      where: {
+        id: userId,
+      },
+      include: {
+        _count: {
+          select: {
+            follows_as_following: true,
+            follows_as_follower: true,
+            posts: true,
+          },
+        },
+        ...(viewerId
+          ? {
+              follows_as_following: {
+                where: {
+                  follower_id: viewerId,
+                },
+                select: {
+                  id: true,
+                },
+                take: 1,
+              },
+            }
+          : {}),
+      },
+    });
+
+    if (!data) {
+      throw new NotFoundError('Profile not found');
+    }
+
+    return {
+      followers_count: data._count.follows_as_following,
+      following_count: data._count.follows_as_follower,
+      posts_count: data._count.posts,
+      is_following: Boolean(
+        'follows_as_following' in data && Array.isArray(data.follows_as_following)
+          ? data.follows_as_following.length
+          : 0,
+      ),
+    };
+  },
+
+  async follow(followerId: string, followingId: string) {
+    if (followerId === followingId) {
+      throw new BadRequestError('You cannot follow yourself');
+    }
+
+    const profile = await prisma.profile.findUnique({
+      where: {
+        id: followingId,
+      },
+    });
+
+    if (!profile) {
+      throw new NotFoundError('Profile not found');
+    }
+
+    try {
+      await prisma.follow.create({
+        data: {
+          follower_id: followerId,
+          following_id: followingId,
+        },
+      });
+    } catch (error) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2002'
+      ) {
+        throw new ConflictError('You are already following this user');
+      }
+
+      throw normalizeProfileError(error);
+    }
+  },
+
+  async unfollow(followerId: string, followingId: string) {
+    if (followerId === followingId) {
+      throw new BadRequestError('You cannot unfollow yourself');
+    }
+
+    const profile = await prisma.profile.findUnique({
+      where: {
+        id: followingId,
+      },
+    });
+
+    if (!profile) {
+      throw new NotFoundError('Profile not found');
+    }
+
+    await prisma.follow.deleteMany({
+      where: {
+        follower_id: followerId,
+        following_id: followingId,
+      },
+    });
+  },
+
+  async listFollowers(profileId: string, viewerId?: string): Promise<ProfileSummaryRecord[]> {
+    const profile = await prisma.profile.findUnique({
+      where: {
+        id: profileId,
+      },
+    });
+
+    if (!profile) {
+      throw new NotFoundError('Profile not found');
+    }
+
+    const data = await prisma.follow.findMany({
+      where: {
+        following_id: profileId,
+      },
+      include: {
+        follower: {
+          select: {
+            id: true,
+            full_name: true,
+            username: true,
+            avatar_url: true,
+            ...(viewerId
+              ? {
+                  follows_as_following: {
+                    where: {
+                      follower_id: viewerId,
+                    },
+                    select: {
+                      id: true,
+                    },
+                    take: 1,
+                  },
+                }
+              : {}),
+          },
+        },
+      },
+      orderBy: {
+        created_at: 'desc',
+      },
+    });
+
+    return data.map((item) => mapProfileSummary(item.follower));
+  },
+
+  async listFollowing(profileId: string, viewerId?: string): Promise<ProfileSummaryRecord[]> {
+    const profile = await prisma.profile.findUnique({
+      where: {
+        id: profileId,
+      },
+    });
+
+    if (!profile) {
+      throw new NotFoundError('Profile not found');
+    }
+
+    const data = await prisma.follow.findMany({
+      where: {
+        follower_id: profileId,
+      },
+      include: {
+        following: {
+          select: {
+            id: true,
+            full_name: true,
+            username: true,
+            avatar_url: true,
+            ...(viewerId
+              ? {
+                  follows_as_following: {
+                    where: {
+                      follower_id: viewerId,
+                    },
+                    select: {
+                      id: true,
+                    },
+                    take: 1,
+                  },
+                }
+              : {}),
+          },
+        },
+      },
+      orderBy: {
+        created_at: 'desc',
+      },
+    });
+
+    return data.map((item) => mapProfileSummary(item.following));
   },
 };

@@ -1,4 +1,8 @@
-import type { CreatePostInput, UpdatePostInput } from './posts.type.js';
+import type {
+  CreatePostCommentInput,
+  CreatePostInput,
+  UpdatePostInput,
+} from './posts.type.js';
 import { postsRepository } from './posts.repository.js';
 
 export const postsService = {
@@ -6,16 +10,20 @@ export const postsService = {
     return postsRepository.create(userId, payload);
   },
 
-  async list() {
-    return postsRepository.findMany();
+  async list(viewerId?: string) {
+    return postsRepository.findMany(viewerId);
   },
 
-  async getById(postId: string) {
-    return postsRepository.findById(postId);
+  async listFeed(userId: string) {
+    return postsRepository.findFeed(userId);
+  },
+
+  async getById(postId: string, viewerId?: string) {
+    return postsRepository.findById(postId, viewerId);
   },
 
   async listOwn(userId: string) {
-    return postsRepository.findByUserId(userId);
+    return postsRepository.findByUserId(userId, userId);
   },
 
   async update(postId: string, userId: string, payload: UpdatePostInput) {
@@ -24,5 +32,33 @@ export const postsService = {
 
   async remove(postId: string, userId: string) {
     return postsRepository.remove(postId, userId);
+  },
+
+  async like(postId: string, userId: string) {
+    return postsRepository.like(postId, userId);
+  },
+
+  async unlike(postId: string, userId: string) {
+    return postsRepository.unlike(postId, userId);
+  },
+
+  async createComment(postId: string, userId: string, payload: CreatePostCommentInput) {
+    return postsRepository.createComment(postId, userId, payload);
+  },
+
+  async listComments(postId: string, viewerId?: string) {
+    return postsRepository.findComments(postId, viewerId);
+  },
+
+  async likeComment(commentId: string, userId: string) {
+    return postsRepository.likeComment(commentId, userId);
+  },
+
+  async unlikeComment(commentId: string, userId: string) {
+    return postsRepository.unlikeComment(commentId, userId);
+  },
+
+  async listLikes(postId: string) {
+    return postsRepository.findPostLikes(postId);
   },
 };

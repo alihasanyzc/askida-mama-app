@@ -14,6 +14,16 @@ function requireUserId(request: Request) {
   return request.user.id;
 }
 
+function requireProfileId(request: Request) {
+  const { profileId } = request.params;
+
+  if (!profileId || Array.isArray(profileId)) {
+    throw new BadRequestError('Profile id is required');
+  }
+
+  return profileId;
+}
+
 export const getOwnProfile = asyncHandler(async (request: Request, response: Response) => {
   const userId = requireUserId(request);
   const data = await profilesService.getOwnProfile(userId);
@@ -21,6 +31,63 @@ export const getOwnProfile = asyncHandler(async (request: Request, response: Res
   response.status(200).json(
     successResponse({
       message: 'Profile fetched successfully',
+      data,
+    }),
+  );
+});
+
+export const getProfileById = asyncHandler(async (request: Request, response: Response) => {
+  const data = await profilesService.getProfileById(requireProfileId(request), request.user?.id);
+
+  response.status(200).json(
+    successResponse({
+      message: 'Profile fetched successfully',
+      data,
+    }),
+  );
+});
+
+export const followProfile = asyncHandler(async (request: Request, response: Response) => {
+  const userId = requireUserId(request);
+  const data = await profilesService.followProfile(userId, requireProfileId(request));
+
+  response.status(200).json(
+    successResponse({
+      message: 'Profile followed successfully',
+      data,
+    }),
+  );
+});
+
+export const unfollowProfile = asyncHandler(async (request: Request, response: Response) => {
+  const userId = requireUserId(request);
+  const data = await profilesService.unfollowProfile(userId, requireProfileId(request));
+
+  response.status(200).json(
+    successResponse({
+      message: 'Profile unfollowed successfully',
+      data,
+    }),
+  );
+});
+
+export const listFollowers = asyncHandler(async (request: Request, response: Response) => {
+  const data = await profilesService.listFollowers(requireProfileId(request), request.user?.id);
+
+  response.status(200).json(
+    successResponse({
+      message: 'Followers fetched successfully',
+      data,
+    }),
+  );
+});
+
+export const listFollowing = asyncHandler(async (request: Request, response: Response) => {
+  const data = await profilesService.listFollowing(requireProfileId(request), request.user?.id);
+
+  response.status(200).json(
+    successResponse({
+      message: 'Following fetched successfully',
       data,
     }),
   );

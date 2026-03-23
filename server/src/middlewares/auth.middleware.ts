@@ -13,32 +13,59 @@ function getTokenFromRequest(request: Request) {
   return authHeader.slice('Bearer '.length).trim();
 }
 
+async function resolveAuthenticatedUser(request: Request) {
+  const token = getTokenFromRequest(request);
+
+  if (!token) {
+    return null;
+  }
+
+  const {
+    data: { user },
+    error,
+  } = await supabaseAdmin.auth.getUser(token);
+
+  if (error || !user) {
+    throw new UnauthorizedError('Invalid or expired authorization token');
+  }
+
+  return {
+    id: user.id,
+    email: user.email ?? null,
+    raw: user,
+  };
+}
+
 export async function authMiddleware(
   request: Request,
   _response: Response,
   next: NextFunction,
 ) {
   try {
-    const token = getTokenFromRequest(request);
+    const user = await resolveAuthenticatedUser(request);
 
-    if (!token) {
+    if (!user) {
       throw new UnauthorizedError('Authorization token is required');
     }
 
-    const {
-      data: { user },
-      error,
-    } = await supabaseAdmin.auth.getUser(token);
+    request.user = user;
+    next();
+  } catch (error) {
+    next(error);
+  }
+}
 
-    if (error || !user) {
-      throw new UnauthorizedError('Invalid or expired authorization token');
+export async function optionalAuthMiddleware(
+  request: Request,
+  _response: Response,
+  next: NextFunction,
+) {
+  try {
+    const user = await resolveAuthenticatedUser(request);
+
+    if (user) {
+      request.user = user;
     }
-
-    request.user = {
-      id: user.id,
-      email: user.email ?? null,
-      raw: user,
-    };
 
     next();
   } catch (error) {

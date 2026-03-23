@@ -1,11 +1,61 @@
 import { ConflictError } from '../../common/errors/base-error.js';
+import { postsRepository } from '../posts/posts.repository.js';
 import { profilesRepository } from './profiles.repository.js';
 import { profilesStorage } from './profiles.storage.js';
 import type { UpdateProfileInput } from './profiles.type.js';
 
 export const profilesService = {
   async getOwnProfile(userId: string) {
-    return profilesRepository.getById(userId);
+    const [profile, posts, stats] = await Promise.all([
+      profilesRepository.getById(userId),
+      postsRepository.findByUserId(userId, userId),
+      profilesRepository.getStats(userId, userId),
+    ]);
+
+    return {
+      ...profile,
+      followers_count: stats.followers_count,
+      following_count: stats.following_count,
+      posts_count: stats.posts_count,
+      posts,
+    };
+  },
+
+  async getProfileById(profileId: string, viewerId?: string) {
+    const [profile, posts, stats] = await Promise.all([
+      profilesRepository.getById(profileId),
+      postsRepository.findByUserId(profileId, viewerId),
+      profilesRepository.getStats(profileId, viewerId),
+    ]);
+
+    return {
+      ...profile,
+      followers_count: stats.followers_count,
+      following_count: stats.following_count,
+      posts_count: stats.posts_count,
+      posts,
+      is_following: stats.is_following,
+    };
+  },
+
+  async followProfile(userId: string, profileId: string) {
+    await profilesRepository.follow(userId, profileId);
+
+    return this.getProfileById(profileId, userId);
+  },
+
+  async unfollowProfile(userId: string, profileId: string) {
+    await profilesRepository.unfollow(userId, profileId);
+
+    return this.getProfileById(profileId, userId);
+  },
+
+  async listFollowers(profileId: string, viewerId?: string) {
+    return profilesRepository.listFollowers(profileId, viewerId);
+  },
+
+  async listFollowing(profileId: string, viewerId?: string) {
+    return profilesRepository.listFollowing(profileId, viewerId);
   },
 
   async updateOwnProfile(userId: string, payload: UpdateProfileInput) {

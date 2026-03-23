@@ -1,9 +1,13 @@
 import type { Request, Response } from 'express';
 
-import { UnauthorizedError } from '../../common/errors/base-error.js';
+import { BadRequestError, UnauthorizedError } from '../../common/errors/base-error.js';
 import { successResponse } from '../../common/http/api-response.js';
 import { asyncHandler } from '../../lib/index.js';
-import type { CreatePostInput, UpdatePostInput } from './posts.type.js';
+import type {
+  CreatePostCommentInput,
+  CreatePostInput,
+  UpdatePostInput,
+} from './posts.type.js';
 import { postsService } from './posts.service.js';
 
 function requireUserId(request: Request) {
@@ -24,6 +28,16 @@ function requirePostId(request: Request) {
   return postId;
 }
 
+function requireCommentId(request: Request) {
+  const { commentId } = request.params;
+
+  if (!commentId || Array.isArray(commentId)) {
+    throw new BadRequestError('Comment id is required');
+  }
+
+  return commentId;
+}
+
 export const createPost = asyncHandler(async (request: Request, response: Response) => {
   const userId = requireUserId(request);
   const data = await postsService.create(userId, request.validatedBody as CreatePostInput);
@@ -37,7 +51,8 @@ export const createPost = asyncHandler(async (request: Request, response: Respon
 });
 
 export const listPosts = asyncHandler(async (_request: Request, response: Response) => {
-  const data = await postsService.list();
+  const viewerId = _request.user?.id;
+  const data = await postsService.list(viewerId);
 
   response.status(200).json(
     successResponse({
@@ -47,8 +62,20 @@ export const listPosts = asyncHandler(async (_request: Request, response: Respon
   );
 });
 
+export const listFeedPosts = asyncHandler(async (request: Request, response: Response) => {
+  const userId = requireUserId(request);
+  const data = await postsService.listFeed(userId);
+
+  response.status(200).json(
+    successResponse({
+      message: 'Feed posts fetched successfully',
+      data,
+    }),
+  );
+});
+
 export const getPostById = asyncHandler(async (request: Request, response: Response) => {
-  const data = await postsService.getById(requirePostId(request));
+  const data = await postsService.getById(requirePostId(request), request.user?.id);
 
   response.status(200).json(
     successResponse({
@@ -94,6 +121,92 @@ export const deletePost = asyncHandler(async (request: Request, response: Respon
     successResponse({
       message: 'Post deleted successfully',
       data: null,
+    }),
+  );
+});
+
+export const likePost = asyncHandler(async (request: Request, response: Response) => {
+  const userId = requireUserId(request);
+  const data = await postsService.like(requirePostId(request), userId);
+
+  response.status(200).json(
+    successResponse({
+      message: 'Post liked successfully',
+      data,
+    }),
+  );
+});
+
+export const unlikePost = asyncHandler(async (request: Request, response: Response) => {
+  const userId = requireUserId(request);
+  const data = await postsService.unlike(requirePostId(request), userId);
+
+  response.status(200).json(
+    successResponse({
+      message: 'Post unliked successfully',
+      data,
+    }),
+  );
+});
+
+export const listPostComments = asyncHandler(async (request: Request, response: Response) => {
+  const data = await postsService.listComments(requirePostId(request), request.user?.id);
+
+  response.status(200).json(
+    successResponse({
+      message: 'Post comments fetched successfully',
+      data,
+    }),
+  );
+});
+
+export const createPostComment = asyncHandler(async (request: Request, response: Response) => {
+  const userId = requireUserId(request);
+  const data = await postsService.createComment(
+    requirePostId(request),
+    userId,
+    request.validatedBody as CreatePostCommentInput,
+  );
+
+  response.status(201).json(
+    successResponse({
+      message: 'Post comment created successfully',
+      data,
+    }),
+  );
+});
+
+export const likeComment = asyncHandler(async (request: Request, response: Response) => {
+  const userId = requireUserId(request);
+  const data = await postsService.likeComment(requireCommentId(request), userId);
+
+  response.status(200).json(
+    successResponse({
+      message: 'Comment liked successfully',
+      data,
+    }),
+  );
+});
+
+export const unlikeComment = asyncHandler(async (request: Request, response: Response) => {
+  const userId = requireUserId(request);
+  const data = await postsService.unlikeComment(requireCommentId(request), userId);
+
+  response.status(200).json(
+    successResponse({
+      message: 'Comment unliked successfully',
+      data,
+    }),
+  );
+});
+
+export const listPostLikes = asyncHandler(async (request: Request, response: Response) => {
+  const data = await postsService.listLikes(requirePostId(request));
+
+  response.status(200).json(
+    successResponse({
+      message: 'Post likes fetched successfully',
+      data,
     }),
   );
 });

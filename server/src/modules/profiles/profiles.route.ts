@@ -1,10 +1,18 @@
 import { Router } from 'express';
 
-import { authMiddleware } from '../../middlewares/auth.middleware.js';
+import {
+  authMiddleware,
+  optionalAuthMiddleware,
+} from '../../middlewares/auth.middleware.js';
 import { profileImageUploadMiddleware } from '../../middlewares/upload.middleware.js';
 import { validationMiddleware } from '../../middlewares/validation.middleware.js';
 import {
+  followProfile,
+  getProfileById,
   getOwnProfile,
+  listFollowers,
+  listFollowing,
+  unfollowProfile,
   updateOwnProfile,
   uploadAvatar,
   uploadCoverPhoto,
@@ -14,8 +22,13 @@ import { updateProfileSchema } from './profiles.schema.js';
 const profilesRouter = Router();
 
 profilesRouter.get('/me', authMiddleware, getOwnProfile);
+profilesRouter.get('/:profileId/followers', optionalAuthMiddleware, listFollowers);
+profilesRouter.get('/:profileId/following', optionalAuthMiddleware, listFollowing);
+profilesRouter.get('/:profileId', optionalAuthMiddleware, getProfileById);
+profilesRouter.post('/:profileId/follow', authMiddleware, followProfile);
 profilesRouter.patch('/me', authMiddleware, validationMiddleware(updateProfileSchema), updateOwnProfile);
 profilesRouter.post('/me/avatar', authMiddleware, profileImageUploadMiddleware, uploadAvatar);
 profilesRouter.post('/me/cover-photo', authMiddleware, profileImageUploadMiddleware, uploadCoverPhoto);
+profilesRouter.delete('/:profileId/follow', authMiddleware, unfollowProfile);
 
 export { profilesRouter };
