@@ -31,6 +31,7 @@ export type PostRecord = {
   likes_count: number;
   comments_count: number;
   is_liked: boolean;
+  is_saved: boolean;
 };
 
 export type CreatePostInput = {

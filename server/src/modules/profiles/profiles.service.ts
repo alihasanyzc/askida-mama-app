@@ -6,10 +6,11 @@ import type { UpdateProfileInput } from './profiles.type.js';
 
 export const profilesService = {
   async getOwnProfile(userId: string) {
-    const [profile, posts, stats] = await Promise.all([
+    const [profile, posts, stats, savedPosts] = await Promise.all([
       profilesRepository.getById(userId),
       postsRepository.findByUserId(userId, userId),
       profilesRepository.getStats(userId, userId),
+      postsRepository.findSavedByUserId(userId),
     ]);
 
     return {
@@ -18,6 +19,7 @@ export const profilesService = {
       following_count: stats.following_count,
       posts_count: stats.posts_count,
       posts,
+      saved_posts: savedPosts,
     };
   },
 

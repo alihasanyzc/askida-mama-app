@@ -8,6 +8,7 @@ import { validationMiddleware } from '../../middlewares/validation.middleware.js
 import {
   createPostComment,
   createPost,
+  deletePostComment,
   deletePost,
   getPostById,
   likeComment,
@@ -15,10 +16,13 @@ import {
   listFeedPosts,
   listPostLikes,
   listOwnPosts,
+  listSavedPosts,
   listPostComments,
   listPosts,
+  savePost,
   unlikeComment,
   unlikePost,
+  unsavePost,
   updatePost,
 } from './posts.controller.js';
 import {
@@ -32,6 +36,7 @@ const postsRouter = Router();
 postsRouter.get('/feed', authMiddleware, listFeedPosts);
 postsRouter.get('/', optionalAuthMiddleware, listPosts);
 postsRouter.get('/me', authMiddleware, listOwnPosts);
+postsRouter.get('/me/saved', authMiddleware, listSavedPosts);
 postsRouter.get('/:postId', optionalAuthMiddleware, getPostById);
 postsRouter.get('/:postId/likes', listPostLikes);
 postsRouter.get('/:postId/comments', optionalAuthMiddleware, listPostComments);
@@ -43,10 +48,13 @@ postsRouter.post(
   createPostComment,
 );
 postsRouter.post('/:postId/like', authMiddleware, likePost);
+postsRouter.post('/:postId/save', authMiddleware, savePost);
 postsRouter.post('/comments/:commentId/like', authMiddleware, likeComment);
 postsRouter.patch('/:postId', authMiddleware, validationMiddleware(updatePostSchema), updatePost);
+postsRouter.delete('/comments/:commentId', authMiddleware, deletePostComment);
 postsRouter.delete('/comments/:commentId/like', authMiddleware, unlikeComment);
 postsRouter.delete('/:postId/like', authMiddleware, unlikePost);
+postsRouter.delete('/:postId/save', authMiddleware, unsavePost);
 postsRouter.delete('/:postId', authMiddleware, deletePost);
 
 export { postsRouter };

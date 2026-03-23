@@ -26,6 +26,10 @@ export const postsService = {
     return postsRepository.findByUserId(userId, userId);
   },
 
+  async listSaved(userId: string) {
+    return postsRepository.findSavedByUserId(userId);
+  },
+
   async update(postId: string, userId: string, payload: UpdatePostInput) {
     return postsRepository.update(postId, userId, payload);
   },
@@ -42,8 +46,20 @@ export const postsService = {
     return postsRepository.unlike(postId, userId);
   },
 
+  async save(postId: string, userId: string) {
+    return postsRepository.save(postId, userId);
+  },
+
+  async unsave(postId: string, userId: string) {
+    return postsRepository.unsave(postId, userId);
+  },
+
   async createComment(postId: string, userId: string, payload: CreatePostCommentInput) {
     return postsRepository.createComment(postId, userId, payload);
+  },
+
+  async removeComment(commentId: string, userId: string) {
+    return postsRepository.removeComment(commentId, userId);
   },
 
   async listComments(postId: string, viewerId?: string) {

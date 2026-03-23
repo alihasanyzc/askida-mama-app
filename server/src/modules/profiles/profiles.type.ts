@@ -47,6 +47,7 @@ export type OwnProfileRecord = ProfileRecord & {
   following_count: number;
   posts_count: number;
   posts: PostRecord[];
+  saved_posts: PostRecord[];
 };
 
 export type PublicProfileRecord = ProfileRecord & {

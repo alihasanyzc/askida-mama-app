@@ -57,6 +57,7 @@ function mapPost(record: {
     post_comments: number;
   };
   post_likes?: Array<{ user_id: string }>;
+  post_saves?: Array<{ user_id: string }>;
 }): PostRecord {
   return {
     id: record.id,
@@ -71,6 +72,7 @@ function mapPost(record: {
     likes_count: record._count.post_likes,
     comments_count: record._count.post_comments,
     is_liked: Boolean(record.post_likes?.length),
+    is_saved: Boolean(record.post_saves?.length),
   };
 }
 
@@ -142,6 +144,15 @@ const postInclude = (viewerId?: string) =>
     ...(viewerId
       ? {
           post_likes: {
+            where: {
+              user_id: viewerId,
+            },
+            select: {
+              user_id: true,
+            },
+            take: 1,
+          },
+          post_saves: {
             where: {
               user_id: viewerId,
             },
@@ -270,6 +281,37 @@ export const postsRepository = {
     return data.map(mapPost);
   },
 
+  async findSavedByUserId(userId: string): Promise<PostRecord[]> {
+    const profile = await prisma.profile.findUnique({
+      where: {
+        id: userId,
+      },
+      select: {
+        id: true,
+      },
+    });
+
+    if (!profile) {
+      throw new NotFoundError('Profile not found');
+    }
+
+    const data = await prisma.postSave.findMany({
+      where: {
+        user_id: userId,
+      },
+      include: {
+        post: {
+          include: postInclude(userId),
+        },
+      },
+      orderBy: {
+        created_at: 'desc',
+      },
+    });
+
+    return data.map((item) => mapPost(item.post));
+  },
+
   async update(postId: string, userId: string, payload: UpdatePostInput): Promise<PostRecord> {
     const existing = await prisma.post.findUnique({
       where: {
@@ -366,6 +408,41 @@ export const postsRepository = {
     return this.findById(postId, userId);
   },
 
+  async save(postId: string, userId: string): Promise<PostRecord> {
+    await this.findById(postId, userId);
+
+    try {
+      await prisma.postSave.create({
+        data: {
+          post_id: postId,
+          user_id: userId,
+        },
+      });
+    } catch (error) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code !== 'P2002'
+      ) {
+        throw normalizePostError(error);
+      }
+    }
+
+    return this.findById(postId, userId);
+  },
+
+  async unsave(postId: string, userId: string): Promise<PostRecord> {
+    await this.findById(postId, userId);
+
+    await prisma.postSave.deleteMany({
+      where: {
+        post_id: postId,
+        user_id: userId,
+      },
+    });
+
+    return this.findById(postId, userId);
+  },
+
   async createComment(
     postId: string,
     userId: string,
@@ -403,6 +480,39 @@ export const postsRepository = {
     });
 
     return data.map(mapComment);
+  },
+
+  async removeComment(commentId: string, userId: string): Promise<void> {
+    const comment = await prisma.postComment.findUnique({
+      where: {
+        id: commentId,
+      },
+      select: {
+        id: true,
+        user_id: true,
+        post: {
+          select: {
+            user_id: true,
+          },
+        },
+      },
+    });
+
+    if (!comment) {
+      throw new NotFoundError('Comment not found');
+    }
+
+    const canDelete = comment.user_id === userId || comment.post.user_id === userId;
+
+    if (!canDelete) {
+      throw new ForbiddenError('You can only delete your own comments or comments on your posts');
+    }
+
+    await prisma.postComment.delete({
+      where: {
+        id: commentId,
+      },
+    });
   },
 
   async likeComment(commentId: string, userId: string): Promise<PostCommentRecord> {

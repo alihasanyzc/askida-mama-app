@@ -97,6 +97,18 @@ export const listOwnPosts = asyncHandler(async (request: Request, response: Resp
   );
 });
 
+export const listSavedPosts = asyncHandler(async (request: Request, response: Response) => {
+  const userId = requireUserId(request);
+  const data = await postsService.listSaved(userId);
+
+  response.status(200).json(
+    successResponse({
+      message: 'Saved posts fetched successfully',
+      data,
+    }),
+  );
+});
+
 export const updatePost = asyncHandler(async (request: Request, response: Response) => {
   const userId = requireUserId(request);
   const data = await postsService.update(
@@ -149,6 +161,30 @@ export const unlikePost = asyncHandler(async (request: Request, response: Respon
   );
 });
 
+export const savePost = asyncHandler(async (request: Request, response: Response) => {
+  const userId = requireUserId(request);
+  const data = await postsService.save(requirePostId(request), userId);
+
+  response.status(200).json(
+    successResponse({
+      message: 'Post saved successfully',
+      data,
+    }),
+  );
+});
+
+export const unsavePost = asyncHandler(async (request: Request, response: Response) => {
+  const userId = requireUserId(request);
+  const data = await postsService.unsave(requirePostId(request), userId);
+
+  response.status(200).json(
+    successResponse({
+      message: 'Post unsaved successfully',
+      data,
+    }),
+  );
+});
+
 export const listPostComments = asyncHandler(async (request: Request, response: Response) => {
   const data = await postsService.listComments(requirePostId(request), request.user?.id);
 
@@ -172,6 +208,18 @@ export const createPostComment = asyncHandler(async (request: Request, response:
     successResponse({
       message: 'Post comment created successfully',
       data,
+    }),
+  );
+});
+
+export const deletePostComment = asyncHandler(async (request: Request, response: Response) => {
+  const userId = requireUserId(request);
+  await postsService.removeComment(requireCommentId(request), userId);
+
+  response.status(200).json(
+    successResponse({
+      message: 'Post comment deleted successfully',
+      data: null,
     }),
   );
 });
