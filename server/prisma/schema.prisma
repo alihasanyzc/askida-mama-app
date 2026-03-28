@@ -34,6 +34,7 @@ model Profile {
   events                     Event[]
   subscriptions              Subscription?
   badges                     Badge[]
+  payment_methods            PaymentMethod[]
   event_registrations        EventRegistration[] @relation("event_registrations_user_idToprofiles")
   reviewed_registrations     EventRegistration[] @relation("event_registrations_reviewed_byToprofiles")
 
@@ -135,9 +136,6 @@ model Bowl {
   status            String          @default("unknown")
   latitude          Decimal         @db.Decimal(10, 7)
   longitude         Decimal         @db.Decimal(10, 7)
-  address           String?
-  city              String?         @db.VarChar(50)
-  district          String?         @db.VarChar(50)
   location_note     String?         @db.VarChar(200)
   last_updated_by   String?         @db.Uuid
   created_at        DateTime?       @default(now()) @db.Timestamptz(6)
@@ -160,7 +158,6 @@ model BowlStatusLog {
   old_longitude     Decimal?  @db.Decimal(10, 7)
   new_latitude      Decimal?  @db.Decimal(10, 7)
   new_longitude     Decimal?  @db.Decimal(10, 7)
-  new_address       String?
   new_location_note String?   @db.VarChar(200)
   source            String    @default("qr")
   created_at        DateTime? @default(now()) @db.Timestamptz(6)
@@ -177,9 +174,8 @@ model Product {
   name           String      @db.VarChar(150)
   description    String
   image_url      String
-  category       String
-  price_per_kg   Decimal     @db.Decimal(10, 2)
-  weight         String      @default("1 kg") @db.VarChar(20)
+  animal_type    String
+  price          Decimal     @db.Decimal(10, 2)
   nutrition_info String?
   is_active      Boolean     @default(true)
   created_by     String      @db.Uuid
@@ -193,22 +189,21 @@ model Product {
 }
 
 model Clinic {
-  id             String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  name           String      @db.VarChar(150)
-  description    String
-  image_url      String
-  latitude       Decimal     @db.Decimal(10, 7)
-  longitude      Decimal     @db.Decimal(10, 7)
-  address        String?
-  city           String?     @db.VarChar(50)
-  district       String?     @db.VarChar(50)
-  location_note  String?     @db.VarChar(200)
-  is_active      Boolean     @default(true)
-  created_by     String      @db.Uuid
-  created_at     DateTime?   @default(now()) @db.Timestamptz(6)
-  updated_at     DateTime?   @updatedAt @db.Timestamptz(6)
-  creator        Profile     @relation(fields: [created_by], references: [id])
-  donations      Donation[]
+  id                   String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name                 String      @db.VarChar(150)
+  description          String
+  image_url            String
+  latitude             Decimal     @db.Decimal(10, 7)
+  longitude            Decimal     @db.Decimal(10, 7)
+  city                 String?     @db.VarChar(50)
+  district             String?     @db.VarChar(50)
+  location_description String?     @db.VarChar(200)
+  is_active            Boolean     @default(true)
+  created_by           String      @db.Uuid
+  created_at           DateTime?   @default(now()) @db.Timestamptz(6)
+  updated_at           DateTime?   @updatedAt @db.Timestamptz(6)
+  creator              Profile     @relation(fields: [created_by], references: [id])
+  donations            Donation[]
 
   @@index([created_by])
   @@map("clinics")
@@ -238,6 +233,24 @@ model Donation {
   @@index([clinic_id])
   @@index([bowl_id])
   @@map("donations")
+}
+
+model PaymentMethod {
+  id              String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id         String    @db.Uuid
+  brand           String    @db.VarChar(20)
+  last4           String    @db.VarChar(4)
+  cardholder_name String    @db.VarChar(120)
+  expiry_month    Int
+  expiry_year     Int
+  card_type       String?   @db.VarChar(30)
+  is_default      Boolean   @default(false)
+  created_at      DateTime? @default(now()) @db.Timestamptz(6)
+  updated_at      DateTime? @updatedAt @db.Timestamptz(6)
+  user            Profile   @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@index([user_id])
+  @@map("payment_methods")
 }
 
 model Announcement {

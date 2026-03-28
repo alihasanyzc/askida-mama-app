@@ -16,6 +16,10 @@ type EnvShape = {
   RATE_LIMIT_MAX: number;
   PROFILE_MEDIA_BUCKET: string;
   PROFILE_MEDIA_MAX_FILE_SIZE_MB: number;
+  ADMIN_EMAIL: string;
+  ADMIN_PASSWORD: string;
+  ADMIN_FULL_NAME: string;
+  ADMIN_USERNAME: string;
 };
 
 const envSchema = Joi.object<EnvShape>({
@@ -34,6 +38,10 @@ const envSchema = Joi.object<EnvShape>({
   RATE_LIMIT_MAX: Joi.number().integer().positive().default(100),
   PROFILE_MEDIA_BUCKET: Joi.string().trim().default('profile-media'),
   PROFILE_MEDIA_MAX_FILE_SIZE_MB: Joi.number().integer().positive().default(5),
+  ADMIN_EMAIL: Joi.string().email().default('admin@askidamama.com'),
+  ADMIN_PASSWORD: Joi.string().min(6).max(128).default('Admin123!'),
+  ADMIN_FULL_NAME: Joi.string().trim().min(2).max(100).default('Askida Mama Admin'),
+  ADMIN_USERNAME: Joi.string().trim().min(3).max(50).default('admin'),
 })
   .unknown(true)
   .required();
@@ -61,4 +69,8 @@ export const env: Readonly<EnvShape> = Object.freeze({
   RATE_LIMIT_MAX: value.RATE_LIMIT_MAX,
   PROFILE_MEDIA_BUCKET: value.PROFILE_MEDIA_BUCKET,
   PROFILE_MEDIA_MAX_FILE_SIZE_MB: value.PROFILE_MEDIA_MAX_FILE_SIZE_MB,
+  ADMIN_EMAIL: value.ADMIN_EMAIL,
+  ADMIN_PASSWORD: value.ADMIN_PASSWORD,
+  ADMIN_FULL_NAME: value.ADMIN_FULL_NAME,
+  ADMIN_USERNAME: value.ADMIN_USERNAME,
 });

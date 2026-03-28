@@ -17,6 +17,7 @@ declare global {
       user?: {
         id: string;
         email: string | null;
+        role: string;
         raw: User;
       };
       validatedBody?: unknown;
