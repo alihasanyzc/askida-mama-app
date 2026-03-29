@@ -1,6 +1,53 @@
 import { env } from '../../config/env.js';
 import type { ChatHistoryItemInput, ChatRespondInput, ChatRespondRecord } from './chat.type.js';
 
+const RULE_BASED_RESPONSES: Record<string, string> = {
+  kusma:
+    'Kusma; hizli yemek yeme, yabanci cisim, mide rahatsizligi veya enfeksiyon kaynakli olabilir. Sik tekrarliyorsa, su tutamiyorsa veya halsizlik eslik ediyorsa veterinere gidin.',
+  ishal:
+    'Ishal durumunda su kaybi riskine dikkat edin. Kanli ishal, uzun sureli ishal veya halsizlik varsa veterinere basvurun. Gecici olarak hafif beslenme dusunulebilir.',
+  ateş:
+    'Yuksek ates ciddi enfeksiyon belirtisi olabilir. Hayvan cok halsizse, titriyorsa veya nefes sorunu varsa acil veteriner destegi alin.',
+  kaşıntı:
+    'Kasinti; pire, alerji, mantar veya cilt enfeksiyonu ile ilgili olabilir. Yogun kasinma, yara veya tüy kaybi varsa veterinere gostermek gerekir.',
+  'tüy dökme':
+    'Tuy dokulmesi mevsimsel olabilir ama asiriysa cilt sorunu, stres veya beslenme eksikligi dusunulur. Deride kizartilik veya acilan bolgeler varsa veteriner kontrolu gerekir.',
+  tüy:
+    'Tuy sorunlari cilt hastaligi, stres veya beslenme ile ilgili olabilir. Asiri dokulme veya ciltte yara varsa veterinere basvurun.',
+  iştahsızlık:
+    'Istahsizlik 24 saatten uzun surerse, kusma veya halsizlik eslik ederse veterinere gidilmelidir. Su tuketimi mutlaka izlenmelidir.',
+  istahsizlik:
+    'Istahsizlik 24 saatten uzun surerse, kusma veya halsizlik eslik ederse veterinere gidilmelidir. Su tuketimi mutlaka izlenmelidir.',
+};
+
+const HEALTH_KEYWORDS = [
+  'kusma',
+  'ishal',
+  'ates',
+  'ateş',
+  'kasinti',
+  'kaşıntı',
+  'tuy',
+  'tüy',
+  'istah',
+  'iştah',
+  'halsiz',
+  'yar',
+  'yara',
+  'kan',
+  'öksür',
+  'oksur',
+  'nefes',
+  'belirti',
+  'hastalik',
+  'hastalık',
+  'enfeksiyon',
+  'parazit',
+  'agri',
+  'ağrı',
+  'deri',
+];
+
 function normalizeAnimalType(animalType?: string | null) {
   if (!animalType) {
     return null;
@@ -19,22 +66,30 @@ function normalizeAnimalType(animalType?: string | null) {
   return normalized;
 }
 
-function buildFallbackReply(message: string, animalType: string | null) {
+function getRuleBasedReply(message: string) {
   const normalizedMessage = message.toLocaleLowerCase('tr-TR');
 
-  if (normalizedMessage.includes('kus') || normalizedMessage.includes('ishal') || normalizedMessage.includes('ates')) {
-    return 'Belirtiler ciddi gorunuyorsa en yakin veterinere yonelin. Nefes darligi, surekli kusma, kanama veya bilinc degisikligi varsa acil destek alin.';
+  for (const [keyword, reply] of Object.entries(RULE_BASED_RESPONSES)) {
+    if (normalizedMessage.includes(keyword)) {
+      return reply;
+    }
   }
 
-  if (animalType === 'cat') {
-    return 'Kedi icin daha net belirti yazarsan daha iyi yonlendirebilirim. Ciddi durumda veterinere basvurmalisin.';
+  return null;
+}
+
+function isHealthQuestion(message: string) {
+  const normalizedMessage = message.toLocaleLowerCase('tr-TR');
+
+  return HEALTH_KEYWORDS.some((keyword) => normalizedMessage.includes(keyword));
+}
+
+function buildRejectedReply(animalType: string | null) {
+  if (!animalType) {
+    return 'Once hayvan turunu secmelisin. Lutfen sadece kedi veya kopek sec.';
   }
 
-  if (animalType === 'dog') {
-    return 'Kopek icin daha net belirti yazarsan daha iyi yonlendirebilirim. Ciddi durumda veterinere basvurmalisin.';
-  }
-
-  return 'Sorunu biraz daha detaylandir. Acil bir durum varsa en yakin veterinere yonelmen gerekir.';
+  return 'Bu alan sadece kedi ve kopek sagligi ile ilgili sorular icin kullanilir. Farkli konulara cevap vermiyorum.';
 }
 
 async function generateGeminiReply(payload: ChatRespondInput, animalType: string | null) {
@@ -44,7 +99,7 @@ async function generateGeminiReply(payload: ChatRespondInput, animalType: string
 
   const history: ChatHistoryItemInput[] = payload.messages ?? [];
   const systemPrompt =
-    'Sen Askida Mama uygulamasinin yapay zeka asistani olarak cevap veriyorsun. Kisa, net ve guvenli cevap ver. Tani koyma. Ciddi durumda veterinere yonlendir. Kullaniciya korku yayma. Ilac dozu verme.';
+    'Sen Askida Mama uygulamasinin yapay zeka asistani olarak cevap veriyorsun. Sadece kedi ve kopek sagligi, belirtileri ve hastaliklari hakkinda cevap ver. Bu alanin disina cikma. Kisa, net ve guvenli cevap ver. Tani koyma. Ciddi durumda veterinere yonlendir. Ilac dozu verme.';
 
   const response = await fetch(
     `https://generativelanguage.googleapis.com/v1beta/models/${env.GEMINI_MODEL}:generateContent`,
@@ -107,13 +162,64 @@ export const chatService = {
 
   async respond(payload: ChatRespondInput): Promise<ChatRespondRecord> {
     const animalType = normalizeAnimalType(payload.animal_type);
+
+    if (!animalType) {
+      return {
+        reply: buildRejectedReply(null),
+        animal_type: null,
+        used_fallback: true,
+        model: null,
+        quick_replies: ['kedi', 'köpek'],
+        require_animal_type_selection: true,
+      };
+    }
+
+    if (animalType !== 'cat' && animalType !== 'dog') {
+      return {
+        reply: 'Gecersiz secim. Lutfen sadece kedi veya kopek sec.',
+        animal_type: animalType,
+        used_fallback: true,
+        model: null,
+        quick_replies: ['kedi', 'köpek'],
+        require_animal_type_selection: true,
+      };
+    }
+
+    const ruleBasedReply = getRuleBasedReply(payload.message);
+
+    if (ruleBasedReply) {
+      return {
+        reply: ruleBasedReply,
+        animal_type: animalType,
+        used_fallback: true,
+        model: null,
+        quick_replies: [],
+        require_animal_type_selection: false,
+      };
+    }
+
+    if (!isHealthQuestion(payload.message)) {
+      return {
+        reply: buildRejectedReply(animalType),
+        animal_type: animalType,
+        used_fallback: true,
+        model: null,
+        quick_replies: [],
+        require_animal_type_selection: false,
+      };
+    }
+
     const aiReply = await generateGeminiReply(payload, animalType);
 
     return {
-      reply: aiReply ?? buildFallbackReply(payload.message, animalType),
+      reply:
+        aiReply ??
+        'Bu belirtiyi genel olarak degerlendirebilirim ama ciddi durumda mutlaka veteriner destegi alin.',
       animal_type: animalType,
       used_fallback: !aiReply,
       model: aiReply ? env.GEMINI_MODEL : null,
+      quick_replies: [],
+      require_animal_type_selection: false,
     };
   },
 };

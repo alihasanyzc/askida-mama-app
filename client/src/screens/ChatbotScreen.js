@@ -12,56 +12,9 @@ import {
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { COLORS, SPACING, FONT_SIZES } from '../constants';
+import api from '../services/api';
 
 const CHAT_BG = '#F8F8F8';
-
-// Kural tabanlı yanıtlar
-const RULE_BASED_RESPONSES = {
-  // Hayvanın türü seçer
-  'kedi': {
-    response: 'Kedi dostunuz için hangi konuda yardımcı olabilirim?',
-    questions: [
-      'Öncelikle, hayvanın türünü seçer misin?',
-      'Kedi veya köpek?',
-    ],
-  },
-  'köpek': {
-    response: 'Köpek dostunuz için hangi konuda yardımcı olabilirim?',
-    questions: [
-      'Öncelikle, hayvanın türünü seçer misin?',
-      'Kedi veya köpek?',
-    ],
-  },
-  // Genel sağlık soruları
-  'kusma': {
-    response: 'Kusma birçok nedenden kaynaklanabilir:\n\n• Hızlı yemek yeme\n• Yabancı cisim yutma\n• Gıda değişikliği\n• Parazit enfeksiyonu\n\nEğer kusma tekrarlıyorsa ve 24 saatten fazla sürüyorsa mutlaka veterinere götürün. Dehidrasyona dikkat edin!',
-    isBot: true,
-  },
-  'ishal': {
-    response: 'İshal durumunda:\n\n• 12-24 saat mama vermeyin, sadece su verin\n• Probiyotik verebilirsiniz\n• Hazmı kolay mamalara geçin\n• Eğer kanlı ishal varsa ACIL veteriner!\n\nDehidrasyonu önlemek için bol su içmeye devam etmeli.',
-    isBot: true,
-  },
-  'ateş': {
-    response: 'Normal vücut ısısı:\n• Kedi: 38-39.2°C\n• Köpek: 38-39.2°C\n\n39.5°C üzeri ateş varsa:\n• Soğuk suyla ıslak havluyla silme\n• Bol su içirme\n• Veterinere götürme\n\nYüksek ateş ciddi enfeksiyon belirtisi olabilir!',
-    isBot: true,
-  },
-  'kaşıntı': {
-    response: 'Kaşıntı nedenleri:\n\n• Pire/kene\n• Alerjik reaksiyon\n• Deri enfeksiyonu\n• Kuru cilt\n\nÇözüm önerileri:\n• Pire/kene ilacı kullanın\n• Mama değiştirmeyi deneyin\n• Aşırı yıkamaktan kaçının\n• Veteriner kontrolü yaptırın',
-    isBot: true,
-  },
-  'tüy dökme': {
-    response: 'Tüy dökülmesi normal ama aşırıysa:\n\n• Beslenme eksikliği olabilir\n• Stres faktörü\n• Hormonal sorun\n• Deri hastalığı\n\nÇözümler:\n• Omega-3 içeren mama\n• Düzenli tarama\n• Veteriner kontrolü',
-    isBot: true,
-  },
-  'iştahsızlık': {
-    response: 'İştahsızlık nedenleri:\n\n• Diş problemleri\n• Mide rahatsızlığı\n• Stres\n• Ağız yarası\n\n24 saatten fazla süren iştahsızlıkta veteriner kontrolü önemli!\n\nSu tüketimini mutlaka takip edin.',
-    isBot: true,
-  },
-  'default': {
-    response: 'Bu konuda size yardımcı olamıyorum. Lütfen daha spesifik bir soru sorun veya aşağıdaki hızlı yanıtlardan birini seçin.',
-    isBot: true,
-  },
-};
 
 // Hızlı yanıt butonları
 const QUICK_REPLIES = [
@@ -96,6 +49,9 @@ const ChatbotScreen = () => {
   ]);
   const [inputText, setInputText] = useState('');
   const [animalType, setAnimalType] = useState(null);
+  const [quickReplies, setQuickReplies] = useState(QUICK_REPLIES);
+  const [requireAnimalTypeSelection, setRequireAnimalTypeSelection] = useState(true);
+  const [isSending, setIsSending] = useState(false);
   const scrollViewRef = useRef(null);
 
   useEffect(() => {
@@ -105,70 +61,103 @@ const ChatbotScreen = () => {
     }, 100);
   }, [messages]);
 
-  const handleSend = () => {
-    if (inputText.trim() === '') return;
+  const createMessage = (text, isBot) => ({
+    id: `${Date.now()}-${Math.random()}`,
+    text,
+    isBot,
+    time: new Date().toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' }),
+  });
 
-    const userMessage = {
-      id: messages.length + 1,
-      text: inputText,
-      isBot: false,
-      time: new Date().toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' }),
-    };
+  const buildChatHistory = (existingMessages, nextUserText) => {
+    const history = existingMessages
+      .slice(-10)
+      .map((message) => ({
+        role: message.isBot ? 'assistant' : 'user',
+        content: message.text,
+      }));
 
-    setMessages([...messages, userMessage]);
+    return [...history, { role: 'user', content: nextUserText }];
+  };
+
+  const syncQuickReplies = (responseData, nextAnimalType) => {
+    const shouldRequireAnimalType = Boolean(responseData?.require_animal_type_selection);
+    const backendQuickReplies = responseData?.quick_replies ?? [];
+
+    setRequireAnimalTypeSelection(shouldRequireAnimalType);
+
+    if (shouldRequireAnimalType && backendQuickReplies.length > 0) {
+      setQuickReplies(
+        backendQuickReplies.map((reply, index) => ({
+          id: index + 1,
+          label: reply === 'kedi' ? '🐱 Kedi' : reply === 'köpek' ? '🐕 Köpek' : reply,
+          value: reply,
+        })),
+      );
+      return;
+    }
+
+    if (nextAnimalType) {
+      setQuickReplies(SYMPTOM_REPLIES);
+      return;
+    }
+
+    setQuickReplies(QUICK_REPLIES);
+  };
+
+  const sendMessage = async (text, forcedAnimalType = null) => {
+    if (!text.trim() || isSending) {
+      return;
+    }
+
+    const userMessage = createMessage(text, false);
+    const nextMessages = [...messages, userMessage];
+
+    setMessages(nextMessages);
     setInputText('');
-
-    // Kural tabanlı yanıt oluştur
-    setTimeout(() => {
-      const botResponse = generateResponse(inputText.toLowerCase());
-      const botMessage = {
-        id: messages.length + 2,
-        text: botResponse,
-        isBot: true,
-        time: new Date().toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' }),
-      };
-      setMessages((prev) => [...prev, botMessage]);
-    }, 500);
-
+    setIsSending(true);
     Keyboard.dismiss();
+
+    try {
+      const response = await api.post('/chat/respond', {
+        message: text,
+        animal_type: forcedAnimalType ?? animalType,
+        messages: buildChatHistory(messages, text),
+      });
+
+      const data = response?.data;
+      const nextAnimalType =
+        data?.require_animal_type_selection
+          ? null
+          : (data?.animal_type ?? forcedAnimalType ?? animalType);
+
+      const botMessage = createMessage(
+        data?.reply ?? 'Bir hata oluştu. Lütfen tekrar deneyin.',
+        true,
+      );
+
+      setAnimalType(nextAnimalType);
+      syncQuickReplies(data, nextAnimalType);
+      setMessages((prev) => [...prev, botMessage]);
+    } catch (_error) {
+      const botMessage = createMessage(
+        'Mesaj işlenemedi. Lütfen bağlantınızı kontrol edip tekrar deneyin.',
+        true,
+      );
+      setMessages((prev) => [...prev, botMessage]);
+    } finally {
+      setIsSending(false);
+    }
+  };
+
+  const handleSend = () => {
+    void sendMessage(inputText);
   };
 
   const handleQuickReply = (value) => {
-    const userMessage = {
-      id: messages.length + 1,
-      text: value.charAt(0).toUpperCase() + value.slice(1),
-      isBot: false,
-      time: new Date().toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' }),
-    };
+    const forcedAnimalType =
+      value === 'kedi' || value === 'köpek' ? value : null;
 
-    setMessages([...messages, userMessage]);
-
-    // Hayvan türünü ayarla
-    if (value === 'kedi' || value === 'köpek') {
-      setAnimalType(value);
-    }
-
-    // Bot yanıtı
-    setTimeout(() => {
-      const response = RULE_BASED_RESPONSES[value] || RULE_BASED_RESPONSES['default'];
-      const botMessage = {
-        id: messages.length + 2,
-        text: response.response,
-        isBot: true,
-        time: new Date().toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' }),
-      };
-      setMessages((prev) => [...prev, botMessage]);
-    }, 500);
-  };
-
-  const generateResponse = (userInput) => {
-    // Anahtar kelimelere göre yanıt üret
-    for (const key in RULE_BASED_RESPONSES) {
-      if (userInput.includes(key)) {
-        return RULE_BASED_RESPONSES[key].response;
-      }
-    }
-    return RULE_BASED_RESPONSES['default'].response;
+    void sendMessage(value, forcedAnimalType);
   };
 
   return (
@@ -230,13 +219,14 @@ const ChatbotScreen = () => {
           ))}
 
           {/* Hızlı Yanıtlar */}
-          {!animalType && (
+          {requireAnimalTypeSelection && (
             <View style={styles.quickRepliesContainer}>
-              {QUICK_REPLIES.map((reply) => (
+              {quickReplies.map((reply) => (
                 <TouchableOpacity
                   key={reply.id}
                   style={styles.quickReplyButton}
                   onPress={() => handleQuickReply(reply.value)}
+                  disabled={isSending}
                 >
                   <Text style={styles.quickReplyText}>{reply.label}</Text>
                 </TouchableOpacity>
@@ -244,13 +234,14 @@ const ChatbotScreen = () => {
             </View>
           )}
 
-          {animalType && (
+          {!requireAnimalTypeSelection && animalType && (
             <View style={styles.quickRepliesContainer}>
-              {SYMPTOM_REPLIES.map((reply) => (
+              {quickReplies.map((reply) => (
                 <TouchableOpacity
                   key={reply.id}
                   style={styles.quickReplyButton}
                   onPress={() => handleQuickReply(reply.value)}
+                  disabled={isSending}
                 >
                   <Text style={styles.quickReplyText}>{reply.label}</Text>
                 </TouchableOpacity>
@@ -272,11 +263,14 @@ const ChatbotScreen = () => {
               maxLength={200}
             />
             <TouchableOpacity
-              style={[styles.sendButton, !inputText.trim() && styles.sendButtonDisabled]}
+              style={[
+                styles.sendButton,
+                (!inputText.trim() || isSending) && styles.sendButtonDisabled,
+              ]}
               onPress={handleSend}
-              disabled={!inputText.trim()}
+              disabled={!inputText.trim() || isSending}
             >
-              <Text style={styles.sendIcon}>➤</Text>
+              <Text style={styles.sendIcon}>{isSending ? '...' : '➤'}</Text>
             </TouchableOpacity>
           </View>
           <Text style={styles.disclaimer}>

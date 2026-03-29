@@ -24,4 +24,6 @@ export type ChatRespondRecord = {
   animal_type: string | null;
   used_fallback: boolean;
   model: string | null;
+  quick_replies: string[];
+  require_animal_type_selection: boolean;
 };

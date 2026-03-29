@@ -1,9 +1,22 @@
-import { Platform } from 'react-native';
+import { NativeModules, Platform } from 'react-native';
+
+function resolveDevApiBaseUrl() {
+  const scriptURL = NativeModules?.SourceCode?.scriptURL;
+  const host = scriptURL?.match(/https?:\/\/([^/:]+)/)?.[1];
+
+  if (host) {
+    return `http://${host}:3000/api/v1`;
+  }
+
+  return Platform.OS === 'android'
+    ? 'http://10.0.2.2:3000/api/v1'
+    : 'http://localhost:3000/api/v1';
+}
 
 // API Configuration
-export const API_BASE_URL = __DEV__ 
-  ? 'http://localhost:3000/api' 
-  : 'https://api.askidamama.com/api';
+export const API_BASE_URL = __DEV__
+  ? resolveDevApiBaseUrl()
+  : 'https://api.askidamama.com/api/v1';
 
 // Colors - 60-30-10 Rule
 export const COLORS = {
