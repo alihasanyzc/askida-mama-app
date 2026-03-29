@@ -2,6 +2,7 @@ import { Router } from 'express';
 
 import { authRouter } from '../modules/auth/auth.route.js';
 import { bowlsRouter } from '../modules/bowls/bowls.route.js';
+import { chatRouter } from '../modules/chat/chat.route.js';
 import { clinicsRouter } from '../modules/clinics/clinics.route.js';
 import { paymentMethodsRouter } from '../modules/payment-methods/payment-methods.route.js';
 import { productsRouter } from '../modules/products/products.route.js';
@@ -20,6 +21,7 @@ router.get('/', (_request, response) => {
 
 router.use('/auth', authRouter);
 router.use('/bowls', bowlsRouter);
+router.use('/chat', chatRouter);
 router.use('/clinics', clinicsRouter);
 router.use('/payment-methods', paymentMethodsRouter);
 router.use('/products', productsRouter);
