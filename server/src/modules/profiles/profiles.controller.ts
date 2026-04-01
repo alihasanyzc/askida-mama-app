@@ -93,6 +93,19 @@ export const listFollowing = asyncHandler(async (request: Request, response: Res
   );
 });
 
+export const listProfileAnnouncements = asyncHandler(
+  async (request: Request, response: Response) => {
+    const data = await profilesService.listAnnouncements(requireProfileId(request));
+
+    response.status(200).json(
+      successResponse({
+        message: 'Profile announcements fetched successfully',
+        data,
+      }),
+    );
+  },
+);
+
 export const updateOwnProfile = asyncHandler(async (request: Request, response: Response) => {
   const userId = requireUserId(request);
   const data = await profilesService.updateOwnProfile(

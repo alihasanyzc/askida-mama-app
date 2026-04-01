@@ -1,5 +1,6 @@
 import { Router } from 'express';
 
+import { announcementsRouter } from '../modules/announcements/announcements.route.js';
 import { authRouter } from '../modules/auth/auth.route.js';
 import { bowlsRouter } from '../modules/bowls/bowls.route.js';
 import { chatRouter } from '../modules/chat/chat.route.js';
@@ -19,6 +20,7 @@ router.get('/', (_request, response) => {
   });
 });
 
+router.use('/announcements', announcementsRouter);
 router.use('/auth', authRouter);
 router.use('/bowls', bowlsRouter);
 router.use('/chat', chatRouter);

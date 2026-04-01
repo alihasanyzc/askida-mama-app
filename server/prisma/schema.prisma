@@ -265,7 +265,8 @@ model Announcement {
   city               String?             @db.VarChar(50)
   district           String?             @db.VarChar(50)
   location_note      String?             @db.VarChar(200)
-  phone              String              @db.VarChar(20)
+  phone              String?             @db.VarChar(20)
+  email              String?             @db.VarChar(150)
   status             String              @default("active")
   is_priority        Boolean             @default(false)
   report_type        String?             @db.VarChar(30)
@@ -282,6 +283,11 @@ model Announcement {
   announcement_images AnnouncementImage[]
 
   @@index([user_id])
+  @@index([category])
+  @@index([city])
+  @@index([district])
+  @@index([user_id, created_at])
+  @@index([is_priority, created_at])
   @@map("announcements")
 }
 

@@ -1,6 +1,6 @@
 import type { NextFunction, Request, Response } from 'express';
 
-import { BaseError, NotFoundError } from '../common/errors/base-error.js';
+import { BadRequestError, BaseError, NotFoundError } from '../common/errors/base-error.js';
 import { errorResponse } from '../common/http/api-response.js';
 import { env } from '../config/env.js';
 
@@ -18,8 +18,16 @@ export function errorMiddleware(
   response: Response,
   _next: NextFunction,
 ) {
+  const bodyParserSyntaxError =
+    error instanceof SyntaxError &&
+    'status' in error &&
+    typeof error.status === 'number' &&
+    error.status === 400;
+
   const normalizedError =
-    error instanceof BaseError
+    bodyParserSyntaxError
+      ? new BadRequestError('Malformed JSON request body')
+      : error instanceof BaseError
       ? error
       : new BaseError({
           message: error instanceof Error ? error.message : 'Unexpected error',

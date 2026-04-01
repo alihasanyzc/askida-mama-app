@@ -1,4 +1,5 @@
 import { ConflictError } from '../../common/errors/base-error.js';
+import { announcementsRepository } from '../announcements/announcements.repository.js';
 import { postsRepository } from '../posts/posts.repository.js';
 import { profilesRepository } from './profiles.repository.js';
 import { profilesStorage } from './profiles.storage.js';
@@ -6,9 +7,10 @@ import type { UpdateProfileInput } from './profiles.type.js';
 
 export const profilesService = {
   async getOwnProfile(userId: string) {
-    const [profile, posts, stats, savedPosts] = await Promise.all([
+    const [profile, posts, announcements, stats, savedPosts] = await Promise.all([
       profilesRepository.getById(userId),
       postsRepository.findByUserId(userId, userId),
+      announcementsRepository.findByUserId(userId),
       profilesRepository.getStats(userId, userId),
       postsRepository.findSavedByUserId(userId),
     ]);
@@ -19,14 +21,16 @@ export const profilesService = {
       following_count: stats.following_count,
       posts_count: stats.posts_count,
       posts,
+      announcements,
       saved_posts: savedPosts,
     };
   },
 
   async getProfileById(profileId: string, viewerId?: string) {
-    const [profile, posts, stats] = await Promise.all([
+    const [profile, posts, announcements, stats] = await Promise.all([
       profilesRepository.getById(profileId),
       postsRepository.findByUserId(profileId, viewerId),
+      announcementsRepository.findByUserId(profileId),
       profilesRepository.getStats(profileId, viewerId),
     ]);
 
@@ -36,8 +40,13 @@ export const profilesService = {
       following_count: stats.following_count,
       posts_count: stats.posts_count,
       posts,
+      announcements,
       is_following: stats.is_following,
     };
+  },
+
+  async listAnnouncements(profileId: string) {
+    return announcementsRepository.findByUserId(profileId);
   },
 
   async followProfile(userId: string, profileId: string) {

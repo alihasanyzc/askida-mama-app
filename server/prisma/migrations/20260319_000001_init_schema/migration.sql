@@ -9,7 +9,7 @@ END;
 $$ LANGUAGE plpgsql;
 
 CREATE TABLE IF NOT EXISTS public.profiles (
-  id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+  id UUID PRIMARY KEY,
   full_name VARCHAR(100) NOT NULL,
   username VARCHAR(50) NOT NULL UNIQUE,
   avatar_url TEXT,

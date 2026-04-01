@@ -10,6 +10,7 @@ import {
   followProfile,
   getProfileById,
   getOwnProfile,
+  listProfileAnnouncements,
   listFollowers,
   listFollowing,
   unfollowProfile,
@@ -22,6 +23,7 @@ import { updateProfileSchema } from './profiles.schema.js';
 const profilesRouter = Router();
 
 profilesRouter.get('/me', authMiddleware, getOwnProfile);
+profilesRouter.get('/:profileId/announcements', optionalAuthMiddleware, listProfileAnnouncements);
 profilesRouter.get('/:profileId/followers', optionalAuthMiddleware, listFollowers);
 profilesRouter.get('/:profileId/following', optionalAuthMiddleware, listFollowing);
 profilesRouter.get('/:profileId', optionalAuthMiddleware, getProfileById);
