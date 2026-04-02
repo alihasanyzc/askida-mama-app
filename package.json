@@ -2,7 +2,7 @@
   "name": "askida-mama",
   "version": "1.0.0",
   "description": "",
-  "main": "client/index.js",
+  "main": "client/index.ts",
   "scripts": {
     "start": "expo start",
     "android": "expo run:android",

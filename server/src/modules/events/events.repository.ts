@@ -190,7 +190,7 @@ export const eventsRepository = {
         event_id: data.event_id,
         user_id: data.user_id,
         email: data.email,
-        status: data.status,
+        status: data.status as EventRegistrationRecord['status'],
         reviewed_by: data.reviewed_by,
         reviewed_at: data.reviewed_at?.toISOString() ?? null,
         created_at: data.created_at?.toISOString() ?? null,
