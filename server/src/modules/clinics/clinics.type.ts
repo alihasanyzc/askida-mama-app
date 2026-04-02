@@ -27,6 +27,7 @@ export type CreateClinicInput = {
   longitude: number;
   city: string;
   district: string;
+  location_description?: string | null;
   locationDescription?: string | null;
 };
 

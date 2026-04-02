@@ -9,10 +9,12 @@ import { validationMiddleware } from '../../middlewares/validation.middleware.js
 import {
   followProfile,
   getProfileById,
+  getProfileByUsername,
   getOwnProfile,
   listProfileAnnouncements,
   listFollowers,
   listFollowing,
+  removeFollower,
   unfollowProfile,
   updateOwnProfile,
   uploadAvatar,
@@ -23,11 +25,13 @@ import { updateProfileSchema } from './profiles.schema.js';
 const profilesRouter = Router();
 
 profilesRouter.get('/me', authMiddleware, getOwnProfile);
+profilesRouter.get('/username/:username', optionalAuthMiddleware, getProfileByUsername);
 profilesRouter.get('/:profileId/announcements', optionalAuthMiddleware, listProfileAnnouncements);
 profilesRouter.get('/:profileId/followers', optionalAuthMiddleware, listFollowers);
 profilesRouter.get('/:profileId/following', optionalAuthMiddleware, listFollowing);
 profilesRouter.get('/:profileId', optionalAuthMiddleware, getProfileById);
 profilesRouter.post('/:profileId/follow', authMiddleware, followProfile);
+profilesRouter.delete('/me/followers/:profileId', authMiddleware, removeFollower);
 profilesRouter.patch('/me', authMiddleware, validationMiddleware(updateProfileSchema), updateOwnProfile);
 profilesRouter.post('/me/avatar', authMiddleware, profileImageUploadMiddleware, uploadAvatar);
 profilesRouter.post('/me/cover-photo', authMiddleware, profileImageUploadMiddleware, uploadCoverPhoto);

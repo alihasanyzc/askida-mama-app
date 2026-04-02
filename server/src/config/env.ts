@@ -20,6 +20,8 @@ type EnvShape = {
   ADMIN_PASSWORD: string;
   ADMIN_FULL_NAME: string;
   ADMIN_USERNAME: string;
+  RESEND_API_KEY: string | null;
+  EMAIL_FROM: string | null;
   GEMINI_API_KEY: string | null;
   GEMINI_MODEL: string | null;
 };
@@ -44,6 +46,8 @@ const envSchema = Joi.object<EnvShape>({
   ADMIN_PASSWORD: Joi.string().min(6).max(128).default('Admin123!'),
   ADMIN_FULL_NAME: Joi.string().trim().min(2).max(100).default('Askida Mama Admin'),
   ADMIN_USERNAME: Joi.string().trim().min(3).max(50).default('admin'),
+  RESEND_API_KEY: Joi.string().min(1).allow(null, '').default(null),
+  EMAIL_FROM: Joi.string().email().allow(null, '').default(null),
   GEMINI_API_KEY: Joi.string().min(1).allow(null, '').default(null),
   GEMINI_MODEL: Joi.string().trim().allow(null, '').default('gemini-flash-latest'),
 })
@@ -77,6 +81,8 @@ export const env: Readonly<EnvShape> = Object.freeze({
   ADMIN_PASSWORD: value.ADMIN_PASSWORD,
   ADMIN_FULL_NAME: value.ADMIN_FULL_NAME,
   ADMIN_USERNAME: value.ADMIN_USERNAME,
+  RESEND_API_KEY: value.RESEND_API_KEY,
+  EMAIL_FROM: value.EMAIL_FROM,
   GEMINI_API_KEY: value.GEMINI_API_KEY,
   GEMINI_MODEL: value.GEMINI_MODEL,
 });

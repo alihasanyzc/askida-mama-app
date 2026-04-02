@@ -24,6 +24,16 @@ function requireProfileId(request: Request) {
   return profileId;
 }
 
+function requireUsername(request: Request) {
+  const { username } = request.params;
+
+  if (!username || Array.isArray(username)) {
+    throw new BadRequestError('Username is required');
+  }
+
+  return username;
+}
+
 export const getOwnProfile = asyncHandler(async (request: Request, response: Response) => {
   const userId = requireUserId(request);
   const data = await profilesService.getOwnProfile(userId);
@@ -38,6 +48,17 @@ export const getOwnProfile = asyncHandler(async (request: Request, response: Res
 
 export const getProfileById = asyncHandler(async (request: Request, response: Response) => {
   const data = await profilesService.getProfileById(requireProfileId(request), request.user?.id);
+
+  response.status(200).json(
+    successResponse({
+      message: 'Profile fetched successfully',
+      data,
+    }),
+  );
+});
+
+export const getProfileByUsername = asyncHandler(async (request: Request, response: Response) => {
+  const data = await profilesService.getProfileByUsername(requireUsername(request), request.user?.id);
 
   response.status(200).json(
     successResponse({
@@ -66,6 +87,18 @@ export const unfollowProfile = asyncHandler(async (request: Request, response: R
   response.status(200).json(
     successResponse({
       message: 'Profile unfollowed successfully',
+      data,
+    }),
+  );
+});
+
+export const removeFollower = asyncHandler(async (request: Request, response: Response) => {
+  const userId = requireUserId(request);
+  const data = await profilesService.removeFollower(userId, requireProfileId(request));
+
+  response.status(200).json(
+    successResponse({
+      message: 'Follower removed successfully',
       data,
     }),
   );

@@ -174,7 +174,11 @@ export const clinicsRepository = {
         city: payload.city,
         district: payload.district,
         location_description:
-          payload.locationDescription === ''
+          payload.location_description !== undefined
+            ? payload.location_description === ''
+              ? null
+              : (payload.location_description ?? null)
+            : payload.locationDescription === ''
             ? null
             : (payload.locationDescription ?? null),
         created_by: adminUserId,

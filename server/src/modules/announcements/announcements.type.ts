@@ -46,6 +46,7 @@ export type AnnouncementRecord = {
   category: AnnouncementCategory;
   title: string;
   description: string;
+  cover_image_url: string | null;
   latitude: number;
   longitude: number;
   address: string | null;
@@ -86,6 +87,7 @@ export type CreateAnnouncementInput = {
   address?: string | null;
   city?: string | null;
   district?: string | null;
+  location_note?: string | null;
   locationDescription?: string | null;
   phone?: string | null;
   email?: string | null;
@@ -109,6 +111,7 @@ export type UpdateAnnouncementInput = {
   address?: string | null;
   city?: string | null;
   district?: string | null;
+  location_note?: string | null;
   locationDescription?: string | null;
   phone?: string | null;
   email?: string | null;

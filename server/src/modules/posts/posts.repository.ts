@@ -63,6 +63,7 @@ function mapPost(record: {
     id: record.id,
     user_id: record.user_id,
     image_url: record.image_url,
+    thumbnail_url: record.image_url,
     content: record.content,
     category: record.category,
     is_priority: record.is_priority,

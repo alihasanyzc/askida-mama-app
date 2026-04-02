@@ -35,6 +35,7 @@ export type UpdateBowlStatusInput = {
 export type UpdateBowlAddressInput = {
   latitude: number;
   longitude: number;
+  location_note?: string | null;
   locationDescription?: string | null;
 };
 

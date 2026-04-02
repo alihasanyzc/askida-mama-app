@@ -41,17 +41,39 @@ function mapProfileSummary(
     follows_as_following?: Array<{ id: string }>;
   },
   fallbackIsFollowing = false,
+  viewerId?: string,
 ): ProfileSummaryRecord {
   return {
     id: record.id,
     full_name: record.full_name,
+    name: record.full_name,
     username: record.username,
     avatar_url: record.avatar_url,
+    avatar: record.avatar_url,
     is_following:
       record.follows_as_following !== undefined
         ? Boolean(record.follows_as_following.length)
         : fallbackIsFollowing,
+    is_self: viewerId === record.id,
   };
+}
+
+function normalizeUsername(username: string) {
+  return username.trim().toLowerCase();
+}
+
+function normalizeOptionalText(value?: string | null) {
+  if (value === undefined) {
+    return undefined;
+  }
+
+  if (value === null) {
+    return null;
+  }
+
+  const normalizedValue = value.trim();
+
+  return normalizedValue === '' ? null : normalizedValue;
 }
 
 function normalizeProfileError(error: unknown) {
@@ -77,9 +99,9 @@ export const profilesRepository = {
       const data = await prisma.profile.create({
         data: {
           id: input.id,
-          full_name: input.full_name,
-          username: input.username,
-          phone: input.phone ?? null,
+          full_name: input.full_name.trim(),
+          username: normalizeUsername(input.username),
+          phone: normalizeOptionalText(input.phone) ?? null,
         },
       });
 
@@ -105,9 +127,12 @@ export const profilesRepository = {
 
   async findByUsername(username: string): Promise<ProfileRecord | null> {
     try {
-      const data = await prisma.profile.findUnique({
+      const data = await prisma.profile.findFirst({
         where: {
-          username,
+          username: {
+            equals: normalizeUsername(username),
+            mode: 'insensitive',
+          },
         },
       });
 
@@ -117,9 +142,28 @@ export const profilesRepository = {
     }
   },
 
+  async getByUsername(username: string): Promise<ProfileRecord> {
+    const data = await prisma.profile.findFirst({
+      where: {
+        username: {
+          equals: normalizeUsername(username),
+          mode: 'insensitive',
+        },
+      },
+    });
+
+    if (!data) {
+      throw new NotFoundError('Profile not found');
+    }
+
+    return mapProfile(data);
+  },
+
   async update(userId: string, payload: UpdateProfileInput): Promise<ProfileRecord> {
     const normalizedPayload = {
       ...payload,
+      full_name: payload.full_name?.trim(),
+      username: payload.username ? normalizeUsername(payload.username) : undefined,
       avatar_url: payload.avatar_url === '' ? null : payload.avatar_url,
       cover_photo_url: payload.cover_photo_url === '' ? null : payload.cover_photo_url,
       bio: payload.bio === '' ? null : payload.bio,
@@ -249,6 +293,37 @@ export const profilesRepository = {
     });
   },
 
+  async removeFollower(userId: string, followerId: string) {
+    if (userId === followerId) {
+      throw new BadRequestError('You cannot remove yourself from followers');
+    }
+
+    const profile = await prisma.profile.findUnique({
+      where: {
+        id: followerId,
+      },
+    });
+
+    if (!profile) {
+      throw new NotFoundError('Profile not found');
+    }
+
+    const result = await prisma.follow.deleteMany({
+      where: {
+        follower_id: followerId,
+        following_id: userId,
+      },
+    });
+
+    if (!result.count) {
+      throw new NotFoundError('Follower relationship not found');
+    }
+
+    return {
+      removed_profile_id: followerId,
+    };
+  },
+
   async listFollowers(profileId: string, viewerId?: string): Promise<ProfileSummaryRecord[]> {
     const profile = await prisma.profile.findUnique({
       where: {
@@ -292,7 +367,7 @@ export const profilesRepository = {
       },
     });
 
-    return data.map((item) => mapProfileSummary(item.follower));
+    return data.map((item) => mapProfileSummary(item.follower, false, viewerId));
   },
 
   async listFollowing(profileId: string, viewerId?: string): Promise<ProfileSummaryRecord[]> {
@@ -338,6 +413,6 @@ export const profilesRepository = {
       },
     });
 
-    return data.map((item) => mapProfileSummary(item.following));
+    return data.map((item) => mapProfileSummary(item.following, false, viewerId));
   },
 };

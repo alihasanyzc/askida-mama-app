@@ -22,6 +22,7 @@ export type PostRecord = {
   id: string;
   user_id: string;
   image_url: string;
+  thumbnail_url: string;
   content: string;
   category: string | null;
   is_priority: boolean;

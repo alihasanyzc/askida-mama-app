@@ -311,7 +311,11 @@ export const bowlsRepository = {
           latitude: payload.latitude,
           longitude: payload.longitude,
           location_note:
-            payload.locationDescription === ''
+            payload.location_note !== undefined
+              ? payload.location_note === ''
+                ? null
+                : (payload.location_note ?? null)
+              : payload.locationDescription === ''
               ? null
               : (payload.locationDescription ?? null),
           last_updated_by: userId,
@@ -329,7 +333,11 @@ export const bowlsRepository = {
           new_latitude: payload.latitude,
           new_longitude: payload.longitude,
           new_location_note:
-            payload.locationDescription === ''
+            payload.location_note !== undefined
+              ? payload.location_note === ''
+                ? null
+                : (payload.location_note ?? null)
+              : payload.locationDescription === ''
               ? null
               : (payload.locationDescription ?? null),
           source: 'manual',
