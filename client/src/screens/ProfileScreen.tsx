@@ -13,6 +13,7 @@ import {
   Modal,
   TouchableWithoutFeedback,
   PanResponder,
+  Alert,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Entypo, Ionicons, FontAwesome, AntDesign, MaterialIcons } from '@expo/vector-icons';
@@ -24,6 +25,9 @@ import type { ProfileRecord } from '../types/domain';
 const { width } = Dimensions.get('window');
 
 type ProfileScreenProps = StackScreenProps<ProfileStackParamList, 'ProfileMain'>;
+type ProfileScreenOwnProps = {
+  onLogout: () => Promise<void>;
+};
 
 type MenuItem = {
   id: number;
@@ -56,7 +60,7 @@ type ProfileViewUser = Pick<ProfileRecord, 'username'> & {
   };
 };
 
-const ProfileScreen = ({ navigation }: ProfileScreenProps): React.JSX.Element => {
+const ProfileScreen = ({ navigation, onLogout }: ProfileScreenProps & ProfileScreenOwnProps): React.JSX.Element => {
   const insets = useSafeAreaInsets();
   const [activeTab, setActiveTab] = useState('blogs');
   const [drawerVisible, setDrawerVisible] = useState(false);
@@ -126,6 +130,24 @@ const ProfileScreen = ({ navigation }: ProfileScreenProps): React.JSX.Element =>
     });
   };
 
+  const handleLogout = () => {
+    Alert.alert('Çıkış Yap', 'Oturumu kapatmak istiyor musunuz?', [
+      {
+        text: 'Vazgeç',
+        style: 'cancel',
+      },
+      {
+        text: 'Çıkış Yap',
+        style: 'destructive',
+        onPress: () => {
+          closeDrawer(() => {
+            void onLogout();
+          });
+        },
+      },
+    ]);
+  };
+
   // Menü seçenekleri (drawer - sağdan açılır)
   const menuItems: MenuItem[] = [
     { 
@@ -171,7 +193,7 @@ const ProfileScreen = ({ navigation }: ProfileScreenProps): React.JSX.Element =>
       iconLib: 'MaterialIcons', 
       iconName: 'logout', 
       title: 'Çıkış Yap', 
-      action: () => closeDrawer(() => console.log('Çıkış')), 
+      action: handleLogout,
       isDanger: true 
     },
   ];

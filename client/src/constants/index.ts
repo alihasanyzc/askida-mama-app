@@ -1,8 +1,30 @@
+import Constants from 'expo-constants';
 import { NativeModules, Platform } from 'react-native';
 
+function extractHost(value: string | null | undefined): string | null {
+  if (!value) {
+    return null;
+  }
+
+  const normalizedValue = value.replace(/^https?:\/\//, '');
+  return normalizedValue.split(':')[0] || null;
+}
+
 function resolveDevApiBaseUrl(): string {
+  const envApiBaseUrl = process.env.EXPO_PUBLIC_API_BASE_URL?.trim();
+
+  if (envApiBaseUrl) {
+    return envApiBaseUrl.replace(/\/$/, '');
+  }
+
+  const expoHost =
+    extractHost(Constants.expoConfig?.hostUri) ??
+    extractHost(Constants.linkingUri) ??
+    extractHost(Constants.expoGoConfig?.debuggerHost);
+
   const scriptURL = NativeModules?.SourceCode?.scriptURL as string | undefined;
-  const host = scriptURL?.match(/https?:\/\/([^/:]+)/)?.[1];
+  const sourceCodeHost = extractHost(scriptURL);
+  const host = expoHost ?? sourceCodeHost;
 
   if (host) {
     return `http://${host}:3000/api/v1`;

@@ -40,6 +40,10 @@ import EventDetailScreen from '../screens/EventDetailScreen';
 import EventsListScreen from '../screens/EventsListScreen';
 import BlogDetailScreen from '../screens/BlogDetailScreen';
 
+type BottomTabNavigatorProps = {
+  onLogout: () => Promise<void>;
+};
+
 const DiscoverStackNavigator = createStackNavigator<DiscoverStackParamList>();
 const MapStackNavigator = createStackNavigator<MapStackParamList>();
 const AnnouncementStackNavigator = createStackNavigator<AnnouncementStackParamList>();
@@ -133,10 +137,12 @@ const AnnouncementStack = (): React.JSX.Element => {
 };
 
 // Profil Stack Navigator (kendi profilimiz)
-const ProfileStack = (): React.JSX.Element => {
+const ProfileStack = ({ onLogout }: BottomTabNavigatorProps): React.JSX.Element => {
   return (
     <ProfileStackNavigator.Navigator id="profile-stack" screenOptions={{ headerShown: false }}>
-      <ProfileStackNavigator.Screen name="ProfileMain" component={ProfileScreen} />
+      <ProfileStackNavigator.Screen name="ProfileMain">
+        {(props) => <ProfileScreen {...props} onLogout={onLogout} />}
+      </ProfileStackNavigator.Screen>
       <ProfileStackNavigator.Screen name="Followers" component={FollowersScreen} />
       <ProfileStackNavigator.Screen name="EditProfile" component={EditProfileScreen} />
       <ProfileStackNavigator.Screen name="Privacy" component={PrivacyScreen} />
@@ -149,7 +155,7 @@ const ProfileStack = (): React.JSX.Element => {
   );
 };
 
-const BottomTabNavigator = (): React.JSX.Element => {
+const BottomTabNavigator = ({ onLogout }: BottomTabNavigatorProps): React.JSX.Element => {
   return (
     <Tab.Navigator
       id="root-tabs"
@@ -212,7 +218,6 @@ const BottomTabNavigator = (): React.JSX.Element => {
       />
       <Tab.Screen
         name="Profil"
-        component={ProfileStack}
         options={{
           tabBarIcon: ({ focused }) => (
             <TabBarIcon 
@@ -221,7 +226,9 @@ const BottomTabNavigator = (): React.JSX.Element => {
             />
           ),
         }}
-      />
+      >
+        {() => <ProfileStack onLogout={onLogout} />}
+      </Tab.Screen>
     </Tab.Navigator>
   );
 };

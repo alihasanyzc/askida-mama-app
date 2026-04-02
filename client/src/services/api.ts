@@ -17,6 +17,22 @@ const api = axios.create({
   },
 });
 
+let authToken: string | null = null;
+
+export function setApiAuthToken(token: string | null) {
+  authToken = token;
+}
+
+api.interceptors.request.use((config) => {
+  if (authToken) {
+    config.headers.Authorization = `Bearer ${authToken}`;
+  } else if (config.headers?.Authorization) {
+    delete config.headers.Authorization;
+  }
+
+  return config;
+});
+
 api.interceptors.response.use(
   <T>(response: { data: T }) => response.data,
   (error: AxiosError) => {
