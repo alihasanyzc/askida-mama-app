@@ -39,6 +39,14 @@ export type ProfileSummaryRecord = {
   is_self: boolean;
 };
 
+export type ProfileSearchRecord = ProfileSummaryRecord & {
+  bio: string | null;
+  followers_count: number;
+  following_count: number;
+  posts_count: number;
+  stats: ProfileStatsRecord;
+};
+
 export type CreateProfileInput = {
   id: string;
   full_name: string;

@@ -8,13 +8,13 @@ import type {
 
 export const createPostSchema = Joi.object<CreatePostInput>({
   image_url: Joi.string().uri().required(),
-  content: Joi.string().trim().min(1).required(),
+  content: Joi.string().trim().allow('').optional().default(''),
   category: Joi.string().trim().max(50).allow(null, '').optional(),
 });
 
 export const updatePostSchema = Joi.object<UpdatePostInput>({
   image_url: Joi.string().uri().optional(),
-  content: Joi.string().trim().min(1).optional(),
+  content: Joi.string().trim().allow('').optional(),
   category: Joi.string().trim().max(50).allow(null, '').optional(),
 })
   .min(1)

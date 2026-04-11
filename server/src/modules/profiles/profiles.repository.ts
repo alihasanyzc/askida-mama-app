@@ -4,10 +4,12 @@ import {
   BadRequestError,
   ConflictError,
   NotFoundError,
+  ServiceUnavailableError,
 } from '../../common/errors/base-error.js';
 import { prisma } from '../../config/prisma.js';
 import type {
   CreateProfileInput,
+  ProfileSearchRecord,
   ProfileRecord,
   ProfileSummaryRecord,
   UpdateProfileInput,
@@ -58,6 +60,36 @@ function mapProfileSummary(
   };
 }
 
+function mapProfileSearch(
+  record: {
+    id: string;
+    full_name: string;
+    username: string;
+    avatar_url: string | null;
+    bio: string | null;
+    _count: {
+      follows_as_following: number;
+      follows_as_follower: number;
+      posts: number;
+    };
+    follows_as_following?: Array<{ id: string }>;
+  },
+  viewerId?: string,
+): ProfileSearchRecord {
+  return {
+    ...mapProfileSummary(record, false, viewerId),
+    bio: record.bio,
+    followers_count: record._count.follows_as_following,
+    following_count: record._count.follows_as_follower,
+    posts_count: record._count.posts,
+    stats: {
+      posts: record._count.posts,
+      followers: record._count.follows_as_following,
+      following: record._count.follows_as_follower,
+    },
+  };
+}
+
 function normalizeUsername(username: string) {
   return username.trim().toLowerCase();
 }
@@ -78,11 +110,32 @@ function normalizeOptionalText(value?: string | null) {
 
 function normalizeProfileError(error: unknown) {
   if (
+    error instanceof Prisma.PrismaClientInitializationError ||
+    error instanceof Prisma.PrismaClientRustPanicError
+  ) {
+    return new ServiceUnavailableError('Database service is temporarily unavailable', {
+      provider: 'postgres',
+      message: error.message,
+    });
+  }
+
+  if (
     error instanceof Prisma.PrismaClientKnownRequestError &&
     error.code === 'P2002'
   ) {
     return new BadRequestError('Profile data conflicts with an existing record', {
       target: error.meta?.target,
+    });
+  }
+
+  if (
+    error instanceof Prisma.PrismaClientKnownRequestError &&
+    ['P1001', 'P1002'].includes(error.code)
+  ) {
+    return new ServiceUnavailableError('Database service is temporarily unavailable', {
+      provider: 'postgres',
+      code: error.code,
+      message: error.message,
     });
   }
 
@@ -112,17 +165,22 @@ export const profilesRepository = {
   },
 
   async getById(userId: string): Promise<ProfileRecord> {
-    const data = await prisma.profile.findUnique({
-      where: {
-        id: userId,
-      },
-    });
+    try {
+      const data = await prisma.profile.findUnique({
+        where: {
+          id: userId,
+        },
+      });
 
-    if (!data) {
-      throw new NotFoundError('Profile not found');
+      if (!data) {
+        throw new NotFoundError('Profile not found');
+      }
+
+      return mapProfile(data);
+    } catch (error) {
+      if (error instanceof NotFoundError) throw error;
+      throw normalizeProfileError(error);
     }
-
-    return mapProfile(data);
   },
 
   async findByUsername(username: string): Promise<ProfileRecord | null> {
@@ -143,20 +201,94 @@ export const profilesRepository = {
   },
 
   async getByUsername(username: string): Promise<ProfileRecord> {
-    const data = await prisma.profile.findFirst({
-      where: {
-        username: {
-          equals: normalizeUsername(username),
-          mode: 'insensitive',
+    try {
+      const data = await prisma.profile.findFirst({
+        where: {
+          username: {
+            equals: normalizeUsername(username),
+            mode: 'insensitive',
+          },
         },
-      },
-    });
+      });
 
-    if (!data) {
-      throw new NotFoundError('Profile not found');
+      if (!data) {
+        throw new NotFoundError('Profile not found');
+      }
+
+      return mapProfile(data);
+    } catch (error) {
+      if (error instanceof NotFoundError) throw error;
+      throw normalizeProfileError(error);
+    }
+  },
+
+  async search(query: string, viewerId?: string): Promise<ProfileSearchRecord[]> {
+    const normalizedQuery = query.trim().replace(/^@+/, '');
+
+    if (!normalizedQuery) {
+      return [];
     }
 
-    return mapProfile(data);
+    try {
+      const data = await prisma.profile.findMany({
+        where: {
+          OR: [
+            {
+              username: {
+                contains: normalizedQuery,
+                mode: 'insensitive',
+              },
+            },
+            {
+              full_name: {
+                contains: normalizedQuery,
+                mode: 'insensitive',
+              },
+            },
+          ],
+        },
+        select: {
+          id: true,
+          full_name: true,
+          username: true,
+          avatar_url: true,
+          bio: true,
+          _count: {
+            select: {
+              follows_as_following: true,
+              follows_as_follower: true,
+              posts: true,
+            },
+          },
+          ...(viewerId
+            ? {
+                follows_as_following: {
+                  where: {
+                    follower_id: viewerId,
+                  },
+                  select: {
+                    id: true,
+                  },
+                  take: 1,
+                },
+              }
+            : {}),
+        },
+        orderBy: [
+          {
+            full_name: 'asc',
+          },
+          {
+            username: 'asc',
+          },
+        ],
+        take: 20,
+      });
+
+      return data.map((profile) => mapProfileSearch(profile, viewerId));
+    } catch (error) {
+      throw normalizeProfileError(error);
+    }
   },
 
   async update(userId: string, payload: UpdateProfileInput): Promise<ProfileRecord> {
@@ -192,48 +324,53 @@ export const profilesRepository = {
   },
 
   async getStats(userId: string, viewerId?: string) {
-    const data = await prisma.profile.findUnique({
-      where: {
-        id: userId,
-      },
-      include: {
-        _count: {
-          select: {
-            follows_as_following: true,
-            follows_as_follower: true,
-            posts: true,
-          },
+    try {
+      const data = await prisma.profile.findUnique({
+        where: {
+          id: userId,
         },
-        ...(viewerId
-          ? {
-              follows_as_following: {
-                where: {
-                  follower_id: viewerId,
+        include: {
+          _count: {
+            select: {
+              follows_as_following: true,
+              follows_as_follower: true,
+              posts: true,
+            },
+          },
+          ...(viewerId
+            ? {
+                follows_as_following: {
+                  where: {
+                    follower_id: viewerId,
+                  },
+                  select: {
+                    id: true,
+                  },
+                  take: 1,
                 },
-                select: {
-                  id: true,
-                },
-                take: 1,
-              },
-            }
-          : {}),
-      },
-    });
+              }
+            : {}),
+        },
+      });
 
-    if (!data) {
-      throw new NotFoundError('Profile not found');
+      if (!data) {
+        throw new NotFoundError('Profile not found');
+      }
+
+      return {
+        followers_count: data._count.follows_as_following,
+        following_count: data._count.follows_as_follower,
+        posts_count: data._count.posts,
+        is_following: Boolean(
+          'follows_as_following' in data && Array.isArray(data.follows_as_following)
+            ? data.follows_as_following.length
+            : 0,
+        ),
+      };
+    } catch (error) {
+      if (error instanceof NotFoundError) throw error;
+      throw normalizeProfileError(error);
     }
-
-    return {
-      followers_count: data._count.follows_as_following,
-      following_count: data._count.follows_as_follower,
-      posts_count: data._count.posts,
-      is_following: Boolean(
-        'follows_as_following' in data && Array.isArray(data.follows_as_following)
-          ? data.follows_as_following.length
-          : 0,
-      ),
-    };
   },
 
   async follow(followerId: string, followingId: string) {

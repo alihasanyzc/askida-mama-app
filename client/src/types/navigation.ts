@@ -64,9 +64,11 @@ export type ProfileStackParamList = {
   Help: undefined;
   EventsList: undefined;
   EventDetail: { event?: Partial<EventRecord> } | undefined;
-  BlogDetail: {
-    blogs?: Array<{
+  ProfilePostFeed: {
+    posts?: Array<{
+      id: string;
       author: {
+        id?: string;
         name: string;
         avatar: string;
       };
@@ -77,8 +79,10 @@ export type ProfileStackParamList = {
       likes?: number;
       comments?: number;
       category?: string;
+      isSaved?: boolean;
     }>;
     initialIndex?: number;
+    source?: 'posts' | 'saved';
   } | undefined;
 };
 

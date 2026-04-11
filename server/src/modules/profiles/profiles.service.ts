@@ -84,6 +84,10 @@ export const profilesService = {
     return this.getProfileById(profile.id, viewerId);
   },
 
+  async searchProfiles(query: string, viewerId?: string) {
+    return profilesRepository.search(query, viewerId);
+  },
+
   async listAnnouncements(profileId: string) {
     return announcementsRepository.findByUserId(profileId);
   },

@@ -3,17 +3,23 @@ import {
   View,
   Text,
   StyleSheet,
-  ScrollView,
   TextInput,
   TouchableOpacity,
   Image,
   ImageBackground,
   Alert,
 } from 'react-native';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
-import { Entypo, Ionicons } from '@expo/vector-icons';
+import { AxiosError } from 'axios';
+import { Entypo } from '@expo/vector-icons';
 import { COLORS, SPACING, FONT_SIZES } from '../constants';
+import { loadOwnProfile } from '../hooks/useOwnProfile';
+import {
+  updateOwnProfile,
+  uploadProfileAvatar,
+  uploadProfileCoverPhoto,
+} from '../services/profiles';
 import type { StackScreenProps } from '@react-navigation/stack';
 import type { ProfileStackParamList } from '../types/navigation';
 import type { ProfileRecord } from '../types/domain';
@@ -23,64 +29,82 @@ type EditProfileScreenProps = StackScreenProps<ProfileStackParamList, 'EditProfi
 type EditableProfileUser = Partial<ProfileRecord> & {
   name?: string;
   avatar?: string | null;
+  cover_photo?: string | null;
 };
+
+const DEFAULT_AVATAR_URL =
+  'https://abs.twimg.com/sticky/default_profile_images/default_profile_400x400.png';
 
 const EditProfileScreen = ({ route, navigation }: EditProfileScreenProps): React.JSX.Element => {
   const insets = useSafeAreaInsets();
   const user = (route.params?.user as EditableProfileUser | undefined) ?? {};
 
   // Form state
-  const [name, setName] = useState(user.name ?? '');
+  const [name, setName] = useState(user.name ?? user.full_name ?? '');
   const [username, setUsername] = useState(user.username ?? '');
   const [bio, setBio] = useState(user.bio ?? '');
-  const [avatar, setAvatar] = useState<string | null>(user.avatar ?? null);
-  const [coverPhoto, setCoverPhoto] = useState('https://images.unsplash.com/photo-1450778869180-41d0601e046e?w=800');
+  const [phone, setPhone] = useState(user.phone ?? '');
+  const [avatar, setAvatar] = useState<string | null>(user.avatar ?? user.avatar_url ?? null);
+  const [coverPhoto, setCoverPhoto] = useState<string | null>(
+    user.cover_photo ?? user.cover_photo_url ?? null,
+  );
+
+  const isLocalImageUri = (uri: string | null) => Boolean(uri && !/^https?:\/\//i.test(uri));
 
   // Profil fotoğrafı seçme
   const pickAvatar = async () => {
-    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    
-    if (status !== 'granted') {
-      Alert.alert('İzin Gerekli', 'Fotoğraf seçmek için galeri erişim izni gerekiyor.');
-      return;
-    }
+    try {
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      
+      if (status !== 'granted') {
+        Alert.alert('İzin Gerekli', 'Fotoğraf seçmek için galeri erişim izni gerekiyor.');
+        return;
+      }
 
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true,
-      aspect: [1, 1],
-      quality: 0.8,
-    });
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.8,
+      });
 
-    if (!result.canceled) {
-      setAvatar(result.assets[0].uri);
+      if (!result.canceled) {
+        setAvatar(result.assets[0].uri);
+      }
+    } catch (error) {
+      console.error('Avatar picker error:', error);
+      Alert.alert('Hata', 'Profil fotoğrafı seçilirken bir hata oluştu.');
     }
   };
 
   // Kapak fotoğrafı seçme
   const pickCoverPhoto = async () => {
-    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    
-    if (status !== 'granted') {
-      Alert.alert('İzin Gerekli', 'Fotoğraf seçmek için galeri erişim izni gerekiyor.');
-      return;
-    }
+    try {
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      
+      if (status !== 'granted') {
+        Alert.alert('İzin Gerekli', 'Fotoğraf seçmek için galeri erişim izni gerekiyor.');
+        return;
+      }
 
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true,
-      aspect: [16, 9],
-      quality: 0.8,
-    });
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [16, 9],
+        quality: 0.8,
+      });
 
-    if (!result.canceled) {
-      setCoverPhoto(result.assets[0].uri);
+      if (!result.canceled) {
+        setCoverPhoto(result.assets[0].uri);
+      }
+    } catch (error) {
+      console.error('Cover picker error:', error);
+      Alert.alert('Hata', 'Kapak fotoğrafı seçilirken bir hata oluştu.');
     }
   };
 
   // Profili kaydet
-  const handleSave = () => {
-    // Validasyon
+  const handleSave = async () => {
     if (!name.trim()) {
       Alert.alert('Hata', 'İsim alanı boş bırakılamaz.');
       return;
@@ -91,56 +115,67 @@ const EditProfileScreen = ({ route, navigation }: EditProfileScreenProps): React
       return;
     }
 
-    // Mock: Gerçek uygulamada API'ye gönderilir
-    const updatedUser = {
-      ...user,
-      name: name.trim(),
-      username: username.trim(),
-      bio: bio.trim(),
-      avatar,
-    };
+    try {
+      const avatarUpload = isLocalImageUri(avatar) ? await uploadProfileAvatar(avatar as string) : null;
+      const coverUpload = isLocalImageUri(coverPhoto)
+        ? await uploadProfileCoverPhoto(coverPhoto as string)
+        : null;
 
-    Alert.alert(
-      'Başarılı',
-      'Profiliniz güncellendi!',
-      [
+      await updateOwnProfile({
+        full_name: name.trim(),
+        username: username.trim(),
+        bio: bio.trim() || null,
+        phone: phone.trim() || null,
+        avatar_url: avatarUpload?.image_url ?? avatar ?? null,
+        cover_photo_url: coverUpload?.image_url ?? coverPhoto ?? null,
+      });
+
+      await loadOwnProfile();
+
+      Alert.alert('Başarılı', 'Profiliniz güncellendi!', [
         {
           text: 'Tamam',
-          onPress: () => {
-            // Gerçek uygulamada güncellenmiş veriyi geri gönderirsiniz
-            navigation.goBack();
-          },
+          onPress: () => navigation.goBack(),
         },
-      ]
-    );
+      ]);
+    } catch (error) {
+      if (error instanceof AxiosError && error.response?.status === 503) {
+        Alert.alert(
+          'Bağlantı Sorunu',
+          'Profil servisine şu anda ulaşılamıyor. Birkaç saniye sonra tekrar deneyin.',
+        );
+        return;
+      }
+
+      console.error('Profile update error:', error);
+      Alert.alert('Hata', 'Profil güncellenirken bir hata oluştu.');
+    }
   };
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <View style={styles.container}>
       {/* Header */}
-      <View style={styles.header}>
+      <View style={[styles.header, { paddingTop: insets.top + SPACING.sm }]}>
         <TouchableOpacity
           style={styles.backButton}
           onPress={() => navigation.goBack()}
           activeOpacity={0.7}
         >
-          <Ionicons name="arrow-back" size={24} color={COLORS.secondary} />
+          <Text style={styles.backIcon}>←</Text>
         </TouchableOpacity>
+        <Text style={styles.headerTitle}>Profili Düzenle</Text>
+        <View style={styles.placeholder} />
       </View>
 
-      <ScrollView
-        style={styles.scrollView}
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.scrollContent}
-      >
+      <View style={styles.content}>
         {/* Cover Photo Section */}
         <View style={styles.coverSection}>
           <ImageBackground
-            source={{ uri: coverPhoto }}
-            style={styles.coverPhoto}
+            source={coverPhoto ? { uri: coverPhoto } : undefined}
+            style={[styles.coverPhoto, !coverPhoto && styles.defaultCoverPhoto]}
             imageStyle={styles.coverPhotoImage}
           >
-            <View style={styles.coverOverlay} />
+            {coverPhoto ? <View style={styles.coverOverlay} /> : null}
             <TouchableOpacity
               style={styles.changeCoverButton}
               onPress={pickCoverPhoto}
@@ -153,7 +188,7 @@ const EditProfileScreen = ({ route, navigation }: EditProfileScreenProps): React
 
           {/* Avatar Section */}
           <View style={styles.avatarContainer}>
-            <Image source={{ uri: avatar ?? undefined }} style={styles.avatar} />
+            <Image source={{ uri: avatar ?? DEFAULT_AVATAR_URL }} style={styles.avatar} />
             <TouchableOpacity
               style={styles.changeAvatarButton}
               onPress={pickAvatar}
@@ -194,6 +229,20 @@ const EditProfileScreen = ({ route, navigation }: EditProfileScreenProps): React
             </View>
           </View>
 
+          {/* Phone Input */}
+          <View style={styles.inputGroup}>
+            <Text style={styles.inputLabel}>Telefon</Text>
+            <TextInput
+              style={styles.input}
+              value={phone}
+              onChangeText={setPhone}
+              placeholder="0555 123 4567"
+              placeholderTextColor={COLORS.gray}
+              keyboardType="phone-pad"
+              maxLength={20}
+            />
+          </View>
+
           {/* Bio Input */}
           <View style={styles.inputGroup}>
             <Text style={styles.inputLabel}>Hakkında</Text>
@@ -204,21 +253,14 @@ const EditProfileScreen = ({ route, navigation }: EditProfileScreenProps): React
               placeholder="Kendinizden bahsedin..."
               placeholderTextColor={COLORS.gray}
               multiline
-              numberOfLines={4}
+              numberOfLines={3}
+              maxLength={150}
               textAlignVertical="top"
             />
             <Text style={styles.charCount}>{bio.length}/150</Text>
           </View>
-
-          {/* Info Box */}
-          <View style={styles.infoBox}>
-            <Text style={styles.infoIcon}>💡</Text>
-            <Text style={styles.infoText}>
-              Profil bilgileriniz herkese açık olarak görüntülenecektir.
-            </Text>
-          </View>
         </View>
-      </ScrollView>
+      </View>
 
       {/* Save Button */}
       <View style={[styles.footer, { paddingBottom: insets.bottom + SPACING.md }]}>
@@ -230,7 +272,7 @@ const EditProfileScreen = ({ route, navigation }: EditProfileScreenProps): React
           <Text style={styles.saveButtonText}>Kaydet</Text>
         </TouchableOpacity>
       </View>
-    </SafeAreaView>
+    </View>
   );
 };
 
@@ -242,9 +284,9 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
     paddingHorizontal: SPACING.md,
-    paddingVertical: SPACING.md,
-    paddingTop: SPACING.md,
+    paddingBottom: SPACING.md,
     backgroundColor: COLORS.white,
     borderBottomWidth: 1,
     borderBottomColor: COLORS.accentLight,
@@ -252,30 +294,42 @@ const styles = StyleSheet.create({
   backButton: {
     width: 40,
     height: 40,
-    borderRadius: 20,
-    backgroundColor: COLORS.accentLight,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  scrollView: {
-    flex: 1,
+  backIcon: {
+    fontSize: 28,
+    color: COLORS.secondary,
   },
-  scrollContent: {
-    paddingBottom: SPACING.xl,
+  headerTitle: {
+    flex: 1,
+    fontSize: FONT_SIZES.lg,
+    fontWeight: '700',
+    color: COLORS.secondary,
+    textAlign: 'center',
+  },
+  placeholder: {
+    width: 40,
+  },
+  content: {
+    flex: 1,
   },
   coverSection: {
     position: 'relative',
-    height: 200,
+    height: 160,
     backgroundColor: COLORS.background,
   },
   coverPhoto: {
     width: '100%',
-    height: 200,
+    height: 160,
     justifyContent: 'center',
     alignItems: 'center',
   },
   coverPhotoImage: {
     resizeMode: 'cover',
+  },
+  defaultCoverPhoto: {
+    backgroundColor: '#CFD3D7',
   },
   coverOverlay: {
     ...StyleSheet.absoluteFillObject,
@@ -304,13 +358,13 @@ const styles = StyleSheet.create({
   },
   avatarContainer: {
     position: 'absolute',
-    bottom: -50,
+    bottom: -44,
     left: SPACING.lg,
   },
   avatar: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
+    width: 88,
+    height: 88,
+    borderRadius: 44,
     borderWidth: 4,
     borderColor: COLORS.white,
   },
@@ -333,11 +387,12 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   formSection: {
-    marginTop: 60,
+    flex: 1,
+    marginTop: 52,
     paddingHorizontal: SPACING.lg,
   },
   inputGroup: {
-    marginBottom: SPACING.lg,
+    marginBottom: SPACING.md,
   },
   inputLabel: {
     fontSize: FONT_SIZES.md,
@@ -351,7 +406,7 @@ const styles = StyleSheet.create({
     borderColor: COLORS.accentLight,
     borderRadius: 12,
     paddingHorizontal: SPACING.md,
-    paddingVertical: SPACING.md,
+    paddingVertical: SPACING.sm + 2,
     fontSize: FONT_SIZES.md,
     color: COLORS.text,
   },
@@ -372,13 +427,13 @@ const styles = StyleSheet.create({
   },
   usernameInput: {
     flex: 1,
-    paddingVertical: SPACING.md,
+    paddingVertical: SPACING.sm + 2,
     fontSize: FONT_SIZES.md,
     color: COLORS.text,
   },
   bioInput: {
-    height: 100,
-    paddingTop: SPACING.md,
+    height: 56,
+    paddingTop: SPACING.sm + 2,
   },
   charCount: {
     fontSize: FONT_SIZES.sm,
@@ -386,27 +441,10 @@ const styles = StyleSheet.create({
     textAlign: 'right',
     marginTop: SPACING.xs,
   },
-  infoBox: {
-    flexDirection: 'row',
-    backgroundColor: '#E6F7FF',
-    borderRadius: 12,
-    padding: SPACING.md,
-    marginTop: SPACING.md,
-  },
-  infoIcon: {
-    fontSize: 20,
-    marginRight: SPACING.sm,
-  },
-  infoText: {
-    flex: 1,
-    fontSize: FONT_SIZES.sm,
-    color: '#0066CC',
-    lineHeight: 20,
-  },
   footer: {
     backgroundColor: COLORS.white,
     paddingHorizontal: SPACING.lg,
-    paddingTop: SPACING.md,
+    paddingTop: SPACING.sm,
     borderTopWidth: 1,
     borderTopColor: COLORS.accentLight,
   },

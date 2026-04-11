@@ -1,6 +1,11 @@
 import type { NextFunction, Request, Response } from 'express';
+import { Prisma } from '@prisma/client';
 
-import { ForbiddenError, UnauthorizedError } from '../common/errors/base-error.js';
+import {
+  ForbiddenError,
+  ServiceUnavailableError,
+  UnauthorizedError,
+} from '../common/errors/base-error.js';
 import { prisma } from '../config/prisma.js';
 import { supabaseAdmin } from '../config/supabase.js';
 
@@ -21,23 +26,52 @@ async function resolveAuthenticatedUser(request: Request) {
     return null;
   }
 
+  let authResult: Awaited<ReturnType<typeof supabaseAdmin.auth.getUser>>;
+
+  try {
+    authResult = await supabaseAdmin.auth.getUser(token);
+  } catch (error) {
+    throw new ServiceUnavailableError('Authentication service is temporarily unavailable', {
+      provider: 'supabase-auth',
+      message: error instanceof Error ? error.message : 'Unknown auth service error',
+    });
+  }
+
   const {
     data: { user },
     error,
-  } = await supabaseAdmin.auth.getUser(token);
+  } = authResult;
 
   if (error || !user) {
     throw new UnauthorizedError('Invalid or expired authorization token');
   }
 
-  const profile = await prisma.profile.findUnique({
-    where: {
-      id: user.id,
-    },
-    select: {
-      role: true,
-    },
-  });
+  let profile: { role: string } | null;
+
+  try {
+    profile = await prisma.profile.findUnique({
+      where: {
+        id: user.id,
+      },
+      select: {
+        role: true,
+      },
+    });
+  } catch (profileError) {
+    if (
+      profileError instanceof Prisma.PrismaClientInitializationError ||
+      profileError instanceof Prisma.PrismaClientRustPanicError ||
+      (profileError instanceof Prisma.PrismaClientKnownRequestError &&
+        ['P1001', 'P1002'].includes(profileError.code))
+    ) {
+      throw new ServiceUnavailableError('Database service is temporarily unavailable', {
+        provider: 'postgres',
+        message: profileError.message,
+      });
+    }
+
+    throw profileError;
+  }
 
   if (!profile) {
     throw new UnauthorizedError('Authenticated profile not found');

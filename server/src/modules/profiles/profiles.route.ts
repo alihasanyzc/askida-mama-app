@@ -15,6 +15,7 @@ import {
   listFollowers,
   listFollowing,
   removeFollower,
+  searchProfiles,
   unfollowProfile,
   updateOwnProfile,
   uploadAvatar,
@@ -25,6 +26,7 @@ import { updateProfileSchema } from './profiles.schema.js';
 const profilesRouter = Router();
 
 profilesRouter.get('/me', authMiddleware, getOwnProfile);
+profilesRouter.get('/search', optionalAuthMiddleware, searchProfiles);
 profilesRouter.get('/username/:username', optionalAuthMiddleware, getProfileByUsername);
 profilesRouter.get('/:profileId/announcements', optionalAuthMiddleware, listProfileAnnouncements);
 profilesRouter.get('/:profileId/followers', optionalAuthMiddleware, listFollowers);

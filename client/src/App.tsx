@@ -7,6 +7,8 @@ import BottomTabNavigator from './navigation/BottomTabNavigator';
 import AuthScreen from './screens/AuthScreen';
 import { COLORS } from './constants';
 import { clearAuthSession, verifyStoredSession } from './services/auth';
+import { setUnauthorizedHandler } from './services/api';
+import { clearCachedOwnProfile } from './hooks/useOwnProfile';
 
 export default function App(): React.JSX.Element {
   const [isBootstrapping, setIsBootstrapping] = useState(true);
@@ -26,6 +28,7 @@ export default function App(): React.JSX.Element {
         if (isMounted) {
           setIsAuthenticated(false);
         }
+        clearCachedOwnProfile();
         await clearAuthSession();
       } finally {
         if (isMounted) {
@@ -41,8 +44,21 @@ export default function App(): React.JSX.Element {
     };
   }, []);
 
+  useEffect(() => {
+    setUnauthorizedHandler(async () => {
+      await clearAuthSession();
+      clearCachedOwnProfile();
+      setIsAuthenticated(false);
+    });
+
+    return () => {
+      setUnauthorizedHandler(null);
+    };
+  }, []);
+
   const handleLogout = async () => {
     await clearAuthSession();
+    clearCachedOwnProfile();
     setIsAuthenticated(false);
   };
 

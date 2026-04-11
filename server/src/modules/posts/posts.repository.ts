@@ -5,6 +5,7 @@ import {
   ConflictError,
   ForbiddenError,
   NotFoundError,
+  ServiceUnavailableError,
 } from '../../common/errors/base-error.js';
 import { prisma } from '../../config/prisma.js';
 import type {
@@ -107,7 +108,25 @@ function mapComment(record: {
 }
 
 function normalizePostError(error: unknown) {
+  if (
+    error instanceof Prisma.PrismaClientInitializationError ||
+    error instanceof Prisma.PrismaClientRustPanicError
+  ) {
+    return new ServiceUnavailableError('Database service is temporarily unavailable', {
+      provider: 'postgres',
+      message: error.message,
+    });
+  }
+
   if (error instanceof Prisma.PrismaClientKnownRequestError) {
+    if (['P1001', 'P1002'].includes(error.code)) {
+      return new ServiceUnavailableError('Database service is temporarily unavailable', {
+        provider: 'postgres',
+        code: error.code,
+        message: error.message,
+      });
+    }
+
     if (error.code === 'P2025') {
       return new NotFoundError('Post not found');
     }
@@ -203,7 +222,7 @@ export const postsRepository = {
         data: {
           user_id: userId,
           image_url: payload.image_url,
-          content: payload.content,
+          content: payload.content?.trim() ?? '',
           category: payload.category === '' ? null : (payload.category ?? null),
         },
         include: postInclude(userId),
@@ -227,30 +246,34 @@ export const postsRepository = {
   },
 
   async findFeed(userId: string): Promise<PostRecord[]> {
-    const data = await prisma.post.findMany({
-      where: {
-        user: {
-          OR: [
-            {
-              id: userId,
-            },
-            {
-              follows_as_following: {
-                some: {
-                  follower_id: userId,
+    try {
+      const data = await prisma.post.findMany({
+        where: {
+          user: {
+            OR: [
+              {
+                id: userId,
+              },
+              {
+                follows_as_following: {
+                  some: {
+                    follower_id: userId,
+                  },
                 },
               },
-            },
-          ],
+            ],
+          },
         },
-      },
-      include: postInclude(userId),
-      orderBy: {
-        created_at: 'desc',
-      },
-    });
+        include: postInclude(userId),
+        orderBy: {
+          created_at: 'desc',
+        },
+      });
 
-    return data.map(mapPost);
+      return data.map(mapPost);
+    } catch (error) {
+      throw normalizePostError(error);
+    }
   },
 
   async findById(postId: string, viewerId?: string): Promise<PostRecord> {
@@ -269,48 +292,57 @@ export const postsRepository = {
   },
 
   async findByUserId(userId: string, viewerId?: string): Promise<PostRecord[]> {
-    const data = await prisma.post.findMany({
-      where: {
-        user_id: userId,
-      },
-      include: postInclude(viewerId),
-      orderBy: {
-        created_at: 'desc',
-      },
-    });
+    try {
+      const data = await prisma.post.findMany({
+        where: {
+          user_id: userId,
+        },
+        include: postInclude(viewerId),
+        orderBy: {
+          created_at: 'desc',
+        },
+      });
 
-    return data.map(mapPost);
+      return data.map(mapPost);
+    } catch (error) {
+      throw normalizePostError(error);
+    }
   },
 
   async findSavedByUserId(userId: string): Promise<PostRecord[]> {
-    const profile = await prisma.profile.findUnique({
-      where: {
-        id: userId,
-      },
-      select: {
-        id: true,
-      },
-    });
-
-    if (!profile) {
-      throw new NotFoundError('Profile not found');
-    }
-
-    const data = await prisma.postSave.findMany({
-      where: {
-        user_id: userId,
-      },
-      include: {
-        post: {
-          include: postInclude(userId),
+    try {
+      const profile = await prisma.profile.findUnique({
+        where: {
+          id: userId,
         },
-      },
-      orderBy: {
-        created_at: 'desc',
-      },
-    });
+        select: {
+          id: true,
+        },
+      });
 
-    return data.map((item) => mapPost(item.post));
+      if (!profile) {
+        throw new NotFoundError('Profile not found');
+      }
+
+      const data = await prisma.postSave.findMany({
+        where: {
+          user_id: userId,
+        },
+        include: {
+          post: {
+            include: postInclude(userId),
+          },
+        },
+        orderBy: {
+          created_at: 'desc',
+        },
+      });
+
+      return data.map((item) => mapPost(item.post));
+    } catch (error) {
+      if (error instanceof NotFoundError) throw error;
+      throw normalizePostError(error);
+    }
   },
 
   async update(postId: string, userId: string, payload: UpdatePostInput): Promise<PostRecord> {
@@ -449,9 +481,9 @@ export const postsRepository = {
     userId: string,
     payload: CreatePostCommentInput,
   ): Promise<PostCommentRecord> {
-    await this.findById(postId, userId);
-
     try {
+      await this.findById(postId, userId);
+
       const data = await prisma.postComment.create({
         data: {
           post_id: postId,
@@ -468,52 +500,62 @@ export const postsRepository = {
   },
 
   async findComments(postId: string, viewerId?: string): Promise<PostCommentRecord[]> {
-    await this.findById(postId, viewerId);
+    try {
+      await this.findById(postId, viewerId);
 
-    const data = await prisma.postComment.findMany({
-      where: {
-        post_id: postId,
-      },
-      include: commentInclude(viewerId),
-      orderBy: {
-        created_at: 'desc',
-      },
-    });
+      const data = await prisma.postComment.findMany({
+        where: {
+          post_id: postId,
+        },
+        include: commentInclude(viewerId),
+        orderBy: {
+          created_at: 'desc',
+        },
+      });
 
-    return data.map(mapComment);
+      return data.map(mapComment);
+    } catch (error) {
+      if (error instanceof NotFoundError) throw error;
+      throw normalizePostError(error);
+    }
   },
 
   async removeComment(commentId: string, userId: string): Promise<void> {
-    const comment = await prisma.postComment.findUnique({
-      where: {
-        id: commentId,
-      },
-      select: {
-        id: true,
-        user_id: true,
-        post: {
-          select: {
-            user_id: true,
+    try {
+      const comment = await prisma.postComment.findUnique({
+        where: {
+          id: commentId,
+        },
+        select: {
+          id: true,
+          user_id: true,
+          post: {
+            select: {
+              user_id: true,
+            },
           },
         },
-      },
-    });
+      });
 
-    if (!comment) {
-      throw new NotFoundError('Comment not found');
+      if (!comment) {
+        throw new NotFoundError('Comment not found');
+      }
+
+      const canDelete = comment.user_id === userId || comment.post.user_id === userId;
+
+      if (!canDelete) {
+        throw new ForbiddenError('You can only delete your own comments or comments on your posts');
+      }
+
+      await prisma.postComment.delete({
+        where: {
+          id: commentId,
+        },
+      });
+    } catch (error) {
+      if (error instanceof NotFoundError || error instanceof ForbiddenError) throw error;
+      throw normalizePostError(error);
     }
-
-    const canDelete = comment.user_id === userId || comment.post.user_id === userId;
-
-    if (!canDelete) {
-      throw new ForbiddenError('You can only delete your own comments or comments on your posts');
-    }
-
-    await prisma.postComment.delete({
-      where: {
-        id: commentId,
-      },
-    });
   },
 
   async likeComment(commentId: string, userId: string): Promise<PostCommentRecord> {
@@ -590,27 +632,32 @@ export const postsRepository = {
   },
 
   async findPostLikes(postId: string): Promise<PostLikeUserRecord[]> {
-    await this.findById(postId);
+    try {
+      await this.findById(postId);
 
-    const data = await prisma.postLike.findMany({
-      where: {
-        post_id: postId,
-      },
-      include: {
-        user: {
-          select: {
-            id: true,
-            full_name: true,
-            username: true,
-            avatar_url: true,
+      const data = await prisma.postLike.findMany({
+        where: {
+          post_id: postId,
+        },
+        include: {
+          user: {
+            select: {
+              id: true,
+              full_name: true,
+              username: true,
+              avatar_url: true,
+            },
           },
         },
-      },
-      orderBy: {
-        created_at: 'desc',
-      },
-    });
+        orderBy: {
+          created_at: 'desc',
+        },
+      });
 
-    return data.map(mapLikeUser);
+      return data.map(mapLikeUser);
+    } catch (error) {
+      if (error instanceof NotFoundError) throw error;
+      throw normalizePostError(error);
+    }
   },
 };

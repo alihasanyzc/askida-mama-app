@@ -1,60 +1,87 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
-  View,
-  Text,
-  StyleSheet,
-  Modal,
-  TouchableOpacity,
-  FlatList,
+  ActivityIndicator,
   Animated,
-  Image,
   Dimensions,
+  FlatList,
+  Image,
+  Modal,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from 'react-native';
+import { AxiosError } from 'axios';
 import { useNavigation } from '@react-navigation/native';
-import { COLORS, SPACING, FONT_SIZES } from '../../constants';
-import type { StackNavigationProp } from '@react-navigation/stack';
-import type { DiscoverStackParamList } from '../../types/navigation';
+import { COLORS, FONT_SIZES, SPACING } from '../../constants';
+import { getStoredAuthSession } from '../../services/auth';
+import { listPostLikes, type PostLikeUserRecord } from '../../services/posts';
 import type { UserProfilePreview } from '../../types/domain';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 
+const DEFAULT_AVATAR_URL =
+  'https://abs.twimg.com/sticky/default_profile_images/default_profile_400x400.png';
+
 type LikesModalProps = {
   visible: boolean;
   onClose: () => void;
-  likes?: LikeUser[];
+  postId?: string;
 };
 
-type LikeUser = {
-  id: string;
-  name: string;
-  username: string;
-  avatar: string;
-  isFollowing: boolean;
-};
-
-const LikesModal = ({ visible, onClose, likes = [] }: LikesModalProps): React.JSX.Element | null => {
+const LikesModal = ({ visible, onClose, postId }: LikesModalProps): React.JSX.Element => {
   const slideAnim = useRef(new Animated.Value(SCREEN_HEIGHT)).current;
-  const [followingUsers, setFollowingUsers] = useState<Record<string, boolean>>({});
-  const navigation = useNavigation<StackNavigationProp<DiscoverStackParamList>>();
+  const navigation = useNavigation<any>();
+  const [likes, setLikes] = useState<PostLikeUserRecord[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  const loadLikes = useCallback(async () => {
+    if (!postId) {
+      setLikes([]);
+      setErrorMessage(null);
+      return;
+    }
+
+    setIsLoading(true);
+    setErrorMessage(null);
+
+    try {
+      const postLikes = await listPostLikes(postId);
+      setLikes(postLikes);
+    } catch (error) {
+      setLikes([]);
+
+      if (error instanceof AxiosError && error.response?.status === 503) {
+        setErrorMessage('Beğenenler şu anda yüklenemiyor.');
+      } else {
+        setErrorMessage('Beğenenler yüklenirken bir hata oluştu.');
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  }, [postId]);
 
   useEffect(() => {
-    if (visible) {
-      Animated.spring(slideAnim, {
-        toValue: 0,
-        useNativeDriver: true,
-        tension: 50,
-        friction: 8,
-      }).start();
-    } else {
+    if (!visible) {
       Animated.timing(slideAnim, {
         toValue: SCREEN_HEIGHT,
         duration: 250,
         useNativeDriver: true,
       }).start();
+      return;
     }
-  }, [visible]);
 
-  const handleClose = () => {
+    void loadLikes();
+    Animated.spring(slideAnim, {
+      toValue: 0,
+      useNativeDriver: true,
+      tension: 50,
+      friction: 8,
+    }).start();
+  }, [loadLikes, slideAnim, visible]);
+
+  const handleClose = useCallback(() => {
     Animated.timing(slideAnim, {
       toValue: SCREEN_HEIGHT,
       duration: 250,
@@ -62,127 +89,87 @@ const LikesModal = ({ visible, onClose, likes = [] }: LikesModalProps): React.JS
     }).start(() => {
       onClose();
     });
-  };
+  }, [onClose, slideAnim]);
 
-  const handleToggleFollow = (userId: string) => {
-    setFollowingUsers(prev => ({
-      ...prev,
-      [userId]: !prev[userId]
-    }));
-  };
+  const handleUserPress = useCallback(async (user: PostLikeUserRecord) => {
+    handleClose();
 
-  const handleUserPress = (user: LikeUser) => {
-    onClose();
+    const session = await getStoredAuthSession();
+    const ownProfileId = session?.profile?.id ?? session?.user?.id;
+
+    if (ownProfileId && user.id === ownProfileId) {
+      navigation.navigate('Profil', {
+        screen: 'ProfileMain',
+      });
+      return;
+    }
+
     const profilePreview: UserProfilePreview = {
       id: user.id,
-      name: user.name,
+      name: user.full_name,
       username: user.username,
-      avatar: user.avatar,
-      bio: 'Hayvan sever 🐾 Sokak dostlarımız için gönüllü',
-      stats: {
-        blogs: Math.floor(Math.random() * 50) + 5,
-        followers: Math.floor(Math.random() * 5000) + 100,
-        following: Math.floor(Math.random() * 1000) + 50,
-        rank: Math.floor(Math.random() * 100) + 1,
-      },
-      donations: {
-        food: { current: Math.floor(Math.random() * 1500) + 500, goal: 2000 },
-        medical: { current: Math.floor(Math.random() * 3000) + 1000, goal: 5000 },
-      },
+      avatar: user.avatar_url ?? DEFAULT_AVATAR_URL,
     };
-    navigation.navigate('UserProfile', {
-      user: profilePreview,
+
+    navigation.navigate('Kesfet', {
+      screen: 'UserProfile',
+      params: {
+        user: profilePreview,
+      },
     });
-  };
+  }, [handleClose, navigation]);
 
-  // Mock beğenenler - bazıları takip ediliyor
-  const mockLikes: LikeUser[] = [
-    {
-      id: '1',
-      name: 'Rebecca Jones',
-      username: 'rebecca_jones',
-      avatar: 'https://i.pravatar.cc/150?img=2',
-      isFollowing: true, // Zaten takip ediliyor
-    },
-    {
-      id: '2',
-      name: 'Yiğit Arslan',
-      username: 'iamyigit__',
-      avatar: 'https://i.pravatar.cc/150?img=1',
-      isFollowing: false,
-    },
-    {
-      id: '3',
-      name: 'Merve Naztatlı',
-      username: 'mervenaztatli10',
-      avatar: 'https://i.pravatar.cc/150?img=3',
-      isFollowing: true,
-    },
-    {
-      id: '4',
-      name: 'Dr. Khen Sick',
-      username: 'drkhensick_hh',
-      avatar: 'https://i.pravatar.cc/150?img=4',
-      isFollowing: false,
-    },
-    {
-      id: '5',
-      name: 'Ahmet Yılmaz',
-      username: 'ahmet_yilmaz',
-      avatar: 'https://i.pravatar.cc/150?img=5',
-      isFollowing: false,
-    },
-    {
-      id: '6',
-      name: 'Zeynep Kaya',
-      username: 'zeynep_k',
-      avatar: 'https://i.pravatar.cc/150?img=6',
-      isFollowing: true,
-    },
-    {
-      id: '7',
-      name: 'Can Demir',
-      username: 'can_demir',
-      avatar: 'https://i.pravatar.cc/150?img=7',
-      isFollowing: false,
-    },
-  ];
+  const renderLike = useCallback(({ item }: { item: PostLikeUserRecord }) => (
+    <TouchableOpacity
+      style={styles.likeItem}
+      onPress={() => handleUserPress(item)}
+      activeOpacity={0.7}
+    >
+      <Image
+        source={{ uri: item.avatar_url ?? DEFAULT_AVATAR_URL }}
+        style={styles.likeAvatar}
+      />
+      <View style={styles.likeInfo}>
+        <Text style={styles.likeName}>{item.full_name}</Text>
+        <Text style={styles.likeUsername}>@{item.username}</Text>
+      </View>
+    </TouchableOpacity>
+  ), [handleUserPress]);
 
-  const renderLike = ({ item }: { item: LikeUser }) => {
-    const isFollowing = followingUsers[item.id] !== undefined 
-      ? followingUsers[item.id] 
-      : item.isFollowing;
+  const renderContent = () => {
+    if (isLoading) {
+      return (
+        <View style={styles.stateContainer}>
+          <ActivityIndicator color={COLORS.primary} />
+        </View>
+      );
+    }
+
+    if (errorMessage) {
+      return (
+        <View style={styles.stateContainer}>
+          <Text style={styles.stateText}>{errorMessage}</Text>
+        </View>
+      );
+    }
+
+    if (!likes.length) {
+      return (
+        <View style={styles.stateContainer}>
+          <Text style={styles.stateText}>Henüz beğeni yok</Text>
+        </View>
+      );
+    }
 
     return (
-      <View style={styles.likeItem}>
-        <TouchableOpacity 
-          style={styles.likeUserInfo}
-          onPress={() => handleUserPress(item)}
-          activeOpacity={0.7}
-        >
-          <Image source={{ uri: item.avatar }} style={styles.likeAvatar} />
-          <View style={styles.likeInfo}>
-            <Text style={styles.likeName}>{item.name}</Text>
-            <Text style={styles.likeUsername}>@{item.username}</Text>
-          </View>
-        </TouchableOpacity>
-        
-        <TouchableOpacity
-          style={[
-            styles.followButton,
-            isFollowing && styles.followingButton
-          ]}
-          onPress={() => handleToggleFollow(item.id)}
-          activeOpacity={0.7}
-        >
-          <Text style={[
-            styles.followButtonText,
-            isFollowing && styles.followingButtonText
-          ]}>
-            {isFollowing ? 'Takip Ediliyor' : 'Takip Et'}
-          </Text>
-        </TouchableOpacity>
-      </View>
+      <FlatList
+        data={likes}
+        renderItem={renderLike}
+        keyExtractor={(item) => item.id}
+        style={styles.likesList}
+        contentContainerStyle={styles.likesListContent}
+        showsVerticalScrollIndicator={false}
+      />
     );
   };
 
@@ -195,12 +182,12 @@ const LikesModal = ({ visible, onClose, likes = [] }: LikesModalProps): React.JS
       statusBarTranslucent
     >
       <View style={styles.modalOverlay}>
-        <TouchableOpacity 
-          style={styles.backdrop} 
-          activeOpacity={1} 
+        <TouchableOpacity
+          style={styles.backdrop}
+          activeOpacity={1}
           onPress={handleClose}
         />
-        
+
         <Animated.View
           style={[
             styles.modalContainer,
@@ -209,7 +196,6 @@ const LikesModal = ({ visible, onClose, likes = [] }: LikesModalProps): React.JS
             },
           ]}
         >
-          {/* Header */}
           <View style={styles.header}>
             <View style={styles.headerHandle} />
             <Text style={styles.headerTitle}>Beğenenler</Text>
@@ -218,15 +204,7 @@ const LikesModal = ({ visible, onClose, likes = [] }: LikesModalProps): React.JS
             </TouchableOpacity>
           </View>
 
-          {/* Likes List */}
-          <FlatList
-            data={mockLikes}
-            renderItem={renderLike}
-            keyExtractor={(item) => item.id}
-            style={styles.likesList}
-            contentContainerStyle={styles.likesListContent}
-            showsVerticalScrollIndicator={false}
-          />
+          {renderContent()}
         </Animated.View>
       </View>
     </Modal>
@@ -291,14 +269,8 @@ const styles = StyleSheet.create({
   likeItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
     paddingHorizontal: SPACING.md,
     paddingVertical: SPACING.sm,
-  },
-  likeUserInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
   },
   likeAvatar: {
     width: 48,
@@ -320,26 +292,16 @@ const styles = StyleSheet.create({
     color: COLORS.gray,
     marginTop: 2,
   },
-  followButton: {
-    paddingHorizontal: SPACING.lg,
-    paddingVertical: SPACING.sm + 2,
-    borderRadius: 20,
-    backgroundColor: COLORS.primary,
-    width: 140,
+  stateContainer: {
+    flex: 1,
+    justifyContent: 'center',
     alignItems: 'center',
+    paddingHorizontal: SPACING.xl,
   },
-  followingButton: {
-    backgroundColor: COLORS.accentLight,
-    borderWidth: 1,
-    borderColor: COLORS.lightGray,
-  },
-  followButtonText: {
+  stateText: {
     fontSize: FONT_SIZES.md,
-    fontWeight: '600',
-    color: COLORS.white,
-  },
-  followingButtonText: {
-    color: COLORS.secondary,
+    color: COLORS.gray,
+    textAlign: 'center',
   },
 });
 

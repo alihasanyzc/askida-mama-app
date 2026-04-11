@@ -23,6 +23,7 @@ import {
   unlikeComment,
   unlikePost,
   unsavePost,
+  uploadPostImage,
   updatePost,
 } from './posts.controller.js';
 import {
@@ -30,6 +31,7 @@ import {
   createPostSchema,
   updatePostSchema,
 } from './posts.schema.js';
+import { postImageUploadMiddleware } from '../../middlewares/upload.middleware.js';
 
 const postsRouter = Router();
 
@@ -40,6 +42,7 @@ postsRouter.get('/me/saved', authMiddleware, listSavedPosts);
 postsRouter.get('/:postId', optionalAuthMiddleware, getPostById);
 postsRouter.get('/:postId/likes', listPostLikes);
 postsRouter.get('/:postId/comments', optionalAuthMiddleware, listPostComments);
+postsRouter.post('/image', authMiddleware, postImageUploadMiddleware, uploadPostImage);
 postsRouter.post('/', authMiddleware, validationMiddleware(createPostSchema), createPost);
 postsRouter.post(
   '/:postId/comments',

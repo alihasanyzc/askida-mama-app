@@ -28,3 +28,4 @@ const upload = multer({
 });
 
 export const profileImageUploadMiddleware = upload.single('image');
+export const postImageUploadMiddleware = upload.single('image');

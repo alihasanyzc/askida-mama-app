@@ -5,7 +5,6 @@ import {
   StyleSheet,
   TouchableOpacity,
   TextInput,
-  ScrollView,
   StatusBar,
   Image,
   Alert,
@@ -14,7 +13,9 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
+import { AxiosError } from 'axios';
 import { COLORS, SPACING, FONT_SIZES } from '../constants';
+import { createUserPost } from '../hooks/useUserPosts';
 import type { StackScreenProps } from '@react-navigation/stack';
 import type { DiscoverStackParamList } from '../types/navigation';
 
@@ -22,69 +23,118 @@ type CreatePostScreenProps = StackScreenProps<DiscoverStackParamList, 'CreatePos
 
 const CreatePostScreen = ({ navigation }: CreatePostScreenProps): React.JSX.Element => {
   const insets = useSafeAreaInsets();
-  const scrollViewRef = useRef<ScrollView | null>(null);
   const contentInputRef = useRef<TextInput | null>(null);
   
-  const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
   const [image, setImage] = useState<string | null>(null);
 
-  // Form validation - resim ve metin zorunlu
+  // Form validation - resim zorunlu, metin opsiyonel
   const isFormValid = useMemo(() => {
-    return image !== null && content.trim() !== '';
-  }, [image, content]);
+    return image !== null;
+  }, [image]);
 
-  const handleCreate = () => {
-    if (isFormValid) {
-      console.log('Post oluşturuldu:', { content, image });
-      // API call yapılacak
-      navigation.goBack();
-    }
-  };
-
-  const pickImage = async () => {
-    // İzin iste
-    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    
-    if (status !== 'granted') {
-      Alert.alert(
-        'İzin Gerekli',
-        'Resim seçmek için galeri erişim izni gereklidir.',
-        [{ text: 'Tamam' }]
-      );
+  const handleCreate = async () => {
+    if (!image) {
+      Alert.alert('Eksik Alan', 'Post oluşturmak için bir resim seçmelisiniz.');
       return;
     }
 
-    // Resim seç
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ['images'],
-      allowsEditing: true,
-      aspect: [16, 9],
-      quality: 0.8,
-    });
+    try {
+      await createUserPost({ content, image });
+      navigation.navigate('DiscoverMain');
+    } catch (error) {
+      if (error instanceof AxiosError && error.response?.status === 401) {
+        Alert.alert('Oturum Süresi Doldu', 'Devam etmek için tekrar giriş yapmanız gerekiyor.');
+        return;
+      }
 
-    if (!result.canceled) {
-      setImage(result.assets[0].uri);
+      console.error('Post create error:', error);
+      Alert.alert('Hata', 'Post oluşturulurken bir hata oluştu.');
     }
+  };
+
+  const openCamera = async () => {
+    try {
+      const { status } = await ImagePicker.requestCameraPermissionsAsync();
+
+      if (status !== 'granted') {
+        Alert.alert('İzin Gerekli', 'Fotoğraf çekmek için kamera erişim izni gereklidir.', [
+          { text: 'Tamam' },
+        ]);
+        return;
+      }
+
+      const result = await ImagePicker.launchCameraAsync({
+        mediaTypes: ['images'],
+        allowsEditing: true,
+        aspect: [16, 9],
+        quality: 0.8,
+      });
+
+      if (!result.canceled) {
+        setImage(result.assets[0].uri);
+      }
+    } catch (error) {
+      console.error('Camera error:', error);
+      Alert.alert(
+        'Kamera Kullanılamıyor',
+        'Bu cihazda veya simülatörde kamera kullanılamıyor. Dosya seçerek devam edebilirsiniz.',
+      );
+    }
+  };
+
+  const openImageLibrary = async () => {
+    try {
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      
+      if (status !== 'granted') {
+        Alert.alert(
+          'İzin Gerekli',
+          'Resim seçmek için galeri erişim izni gereklidir.',
+          [{ text: 'Tamam' }]
+        );
+        return;
+      }
+
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['images'],
+        allowsEditing: true,
+        aspect: [16, 9],
+        quality: 0.8,
+      });
+
+      if (!result.canceled) {
+        setImage(result.assets[0].uri);
+      }
+    } catch (error) {
+      console.error('Image library error:', error);
+      Alert.alert('Hata', 'Resim seçilirken bir hata oluştu.');
+    }
+  };
+
+  const pickImage = () => {
+    Alert.alert('Resim Ekle', 'Post için bir resim seçin.', [
+      {
+        text: 'Fotoğraf Çek',
+        onPress: () => {
+          void openCamera();
+        },
+      },
+      {
+        text: 'Dosya Seç',
+        onPress: () => {
+          void openImageLibrary();
+        },
+      },
+      {
+        text: 'Vazgeç',
+        style: 'cancel',
+      },
+    ]);
   };
 
   const removeImage = () => {
     setImage(null);
-  };
-
-  const handleTitleSubmit = () => {
-    // Metin inputuna focus yap ve scroll et
-    setTimeout(() => {
-      contentInputRef.current?.focus();
-      scrollViewRef.current?.scrollToEnd({ animated: true });
-    }, 100);
-  };
-
-  const handleContentFocus = () => {
-    // Metin inputuna focus olduğunda scroll et
-    setTimeout(() => {
-      scrollViewRef.current?.scrollToEnd({ animated: true });
-    }, 300);
   };
 
   return (
@@ -103,6 +153,7 @@ const CreatePostScreen = ({ navigation }: CreatePostScreenProps): React.JSX.Elem
         >
           <Text style={styles.backIcon}>←</Text>
         </TouchableOpacity>
+        <Text style={styles.headerTitle}>Oluştur</Text>
         <View style={styles.placeholder} />
       </View>
 
@@ -112,13 +163,7 @@ const CreatePostScreen = ({ navigation }: CreatePostScreenProps): React.JSX.Elem
         keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
       >
         {/* Form Content */}
-        <ScrollView 
-          ref={scrollViewRef}
-          style={styles.scrollView}
-          contentContainerStyle={styles.scrollContent}
-          showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled"
-        >
+        <View style={styles.formContent}>
           {/* Resim Yükleme */}
           <View style={styles.section}>
             <Text style={styles.label}>
@@ -154,46 +199,27 @@ const CreatePostScreen = ({ navigation }: CreatePostScreenProps): React.JSX.Elem
             )}
           </View>
 
-          {/* Başlık */}
-          <View style={styles.section}>
-            <Text style={styles.label}>
-              Başlık <Text style={styles.optional}>(opsiyonel)</Text>
-            </Text>
-            <TextInput
-              style={styles.input}
-              placeholder="Gönderi başlığı (opsiyonel)"
-              placeholderTextColor={COLORS.gray}
-              value={title}
-              onChangeText={setTitle}
-              maxLength={100}
-              returnKeyType="next"
-              onSubmitEditing={handleTitleSubmit}
-              blurOnSubmit={false}
-            />
-          </View>
-
           {/* İçerik */}
-          <View style={styles.section}>
+          <View style={[styles.section, styles.contentSection]}>
             <Text style={styles.label}>
-              Metin <Text style={styles.required}>*</Text>
+              Metin <Text style={styles.optional}>(opsiyonel)</Text>
             </Text>
             <TextInput
               ref={contentInputRef}
               style={[styles.input, styles.textArea]}
-              placeholder="Gönderi içeriği yazın..."
+              placeholder="Bir şeyler yazın..."
               placeholderTextColor={COLORS.gray}
               value={content}
               onChangeText={setContent}
-              onFocus={handleContentFocus}
               multiline
               numberOfLines={8}
               textAlignVertical="top"
             />
           </View>
-        </ScrollView>
+        </View>
 
         {/* Oluştur Button - Fixed Bottom */}
-        <View style={[styles.footer, { paddingBottom: insets.bottom + SPACING.md }]}>
+        <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom - SPACING.md, SPACING.xs) }]}>
           <TouchableOpacity
             style={[
               styles.createButton,
@@ -243,21 +269,30 @@ const styles = StyleSheet.create({
     fontSize: 28,
     color: COLORS.secondary,
   },
+  headerTitle: {
+    flex: 1,
+    fontSize: FONT_SIZES.lg,
+    fontWeight: '700',
+    color: COLORS.secondary,
+    textAlign: 'center',
+  },
   placeholder: {
     width: 40,
   },
   keyboardAvoid: {
     flex: 1,
   },
-  scrollView: {
+  formContent: {
     flex: 1,
-  },
-  scrollContent: {
-    paddingBottom: SPACING.xl + SPACING.lg,
+    paddingBottom: 0,
   },
   section: {
     paddingHorizontal: SPACING.md,
     paddingTop: SPACING.lg,
+  },
+  contentSection: {
+    flex: 1,
+    paddingBottom: SPACING.md,
   },
   label: {
     fontSize: FONT_SIZES.md,
@@ -363,15 +398,14 @@ const styles = StyleSheet.create({
     borderColor: COLORS.lightGray,
   },
   textArea: {
-    height: 180,
+    flex: 1,
+    minHeight: 0,
     paddingTop: SPACING.md,
   },
   footer: {
     paddingHorizontal: SPACING.md,
-    paddingTop: SPACING.md,
-    backgroundColor: COLORS.white,
-    borderTopWidth: 1,
-    borderTopColor: COLORS.accentLight,
+    paddingTop: 0,
+    backgroundColor: COLORS.background,
   },
   createButton: {
     backgroundColor: COLORS.lightGray,

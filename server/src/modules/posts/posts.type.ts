@@ -37,7 +37,7 @@ export type PostRecord = {
 
 export type CreatePostInput = {
   image_url: string;
-  content: string;
+  content?: string;
   category?: string | null;
 };
 

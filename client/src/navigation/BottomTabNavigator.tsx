@@ -38,7 +38,7 @@ import PaymentScreen from '../screens/PaymentScreen';
 import ClinicDetailScreen from '../screens/ClinicDetailScreen';
 import EventDetailScreen from '../screens/EventDetailScreen';
 import EventsListScreen from '../screens/EventsListScreen';
-import BlogDetailScreen from '../screens/BlogDetailScreen';
+import ProfilePostFeedScreen from '../screens/ProfilePostFeedScreen';
 
 type BottomTabNavigatorProps = {
   onLogout: () => Promise<void>;
@@ -150,7 +150,7 @@ const ProfileStack = ({ onLogout }: BottomTabNavigatorProps): React.JSX.Element 
       <ProfileStackNavigator.Screen name="Help" component={HelpScreen} />
       <ProfileStackNavigator.Screen name="EventsList" component={EventsListScreen} />
       <ProfileStackNavigator.Screen name="EventDetail" component={EventDetailScreen} />
-      <ProfileStackNavigator.Screen name="BlogDetail" component={BlogDetailScreen} />
+      <ProfileStackNavigator.Screen name="ProfilePostFeed" component={ProfilePostFeedScreen} />
     </ProfileStackNavigator.Navigator>
   );
 };

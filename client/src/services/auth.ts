@@ -2,6 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { AxiosError } from 'axios';
 
 import api, { ApiSuccessResponse, setApiAuthToken } from './api';
+import { clearCachedOwnProfile, hydrateCachedOwnProfile } from '../hooks/useOwnProfile';
 
 const AUTH_STORAGE_KEY = '@askida_mama/auth_session';
 
@@ -65,6 +66,7 @@ function getErrorMessage(error: unknown, fallback: string) {
 async function persistSession(payload: AuthPayload) {
   setApiAuthToken(payload.session.access_token);
   await AsyncStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(payload));
+  hydrateCachedOwnProfile(payload.profile);
 }
 
 export async function clearAuthSession() {
@@ -104,8 +106,10 @@ export async function verifyStoredSession() {
 
   try {
     await api.get<ApiSuccessResponse<VerifyPayload>>('/auth/verify');
+    hydrateCachedOwnProfile(storedSession.profile);
     return storedSession;
   } catch {
+    clearCachedOwnProfile();
     await clearAuthSession();
     return null;
   }

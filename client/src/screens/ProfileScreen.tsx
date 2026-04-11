@@ -1,5 +1,6 @@
-import React, { useState, useRef } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import {
+  ActivityIndicator,
   View,
   Text,
   StyleSheet,
@@ -18,11 +19,17 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Entypo, Ionicons, FontAwesome, AntDesign, MaterialIcons } from '@expo/vector-icons';
 import { COLORS, SPACING, FONT_SIZES } from '../constants';
+import { useOwnProfile } from '../hooks/useOwnProfile';
+import { useSavedPosts } from '../hooks/useSavedPosts';
+import { useUserPosts } from '../hooks/useUserPosts';
+import { formatRelativePostTime } from '../utils/formatters';
 import type { StackScreenProps } from '@react-navigation/stack';
 import type { ProfileStackParamList } from '../types/navigation';
 import type { ProfileRecord } from '../types/domain';
 
 const { width } = Dimensions.get('window');
+const DEFAULT_AVATAR_URL =
+  'https://abs.twimg.com/sticky/default_profile_images/default_profile_400x400.png';
 
 type ProfileScreenProps = StackScreenProps<ProfileStackParamList, 'ProfileMain'>;
 type ProfileScreenOwnProps = {
@@ -39,7 +46,8 @@ type MenuItem = {
 };
 
 type ProfileBlogCard = {
-  author: { name: string; avatar: string };
+  id: string;
+  author: { id?: string; name: string; avatar: string };
   date: string;
   image: string;
   title: string;
@@ -47,12 +55,15 @@ type ProfileBlogCard = {
   likes: number;
   comments: number;
   category: string;
+  isSaved?: boolean;
 };
 
 type ProfileViewUser = Pick<ProfileRecord, 'username'> & {
+  id?: string;
   name: string;
-  avatar: string;
-  bio: string;
+  avatar: string | null;
+  coverPhoto: string | null;
+  bio: string | null;
   stats: {
     blogs: number;
     followers: number;
@@ -65,48 +76,65 @@ const ProfileScreen = ({ navigation, onLogout }: ProfileScreenProps & ProfileScr
   const [activeTab, setActiveTab] = useState('blogs');
   const [drawerVisible, setDrawerVisible] = useState(false);
   const drawerAnim = useRef(new Animated.Value(width)).current;
+  const { posts: userPosts, isLoading: isLoadingPosts } = useUserPosts();
+  const { savedPosts, isLoading: isLoadingSavedPosts } = useSavedPosts();
+  const { profile, isLoading: isLoadingProfile, refresh: refreshProfile } = useOwnProfile();
+
+  useEffect(() => {
+    const unsubscribe = navigation.addListener('focus', () => {
+      void refreshProfile();
+    });
+
+    return unsubscribe;
+  }, [navigation, refreshProfile]);
   
-  // Kendi profil bilgilerimiz (mock data)
   const user: ProfileViewUser = {
-    name: 'Ahmet Yılmaz',
-    username: 'ahmetyilmaz',
-    avatar: 'https://i.pravatar.cc/150?img=12',
-    bio: 'Hayvan sever 🐾 | Doğa fotoğrafçısı 📸 | Sokak hayvanlarına yardım ediyorum 💚',
+    id: profile?.id,
+    name: profile?.name || profile?.full_name || 'Profil',
+    username: profile?.username || '',
+    avatar: profile?.avatar ?? profile?.avatar_url ?? null,
+    coverPhoto: profile?.cover_photo ?? profile?.cover_photo_url ?? null,
+    bio: profile?.bio ?? null,
     stats: {
-      blogs: 24,
-      followers: 1250,
-      following: 432,
+      blogs: userPosts.length,
+      followers: profile?.stats?.followers ?? profile?.followers_count ?? 0,
+      following: profile?.stats?.following ?? profile?.following_count ?? 0,
     },
   };
 
-  // Mock blog resimleri
-  const userBlogs = [
-    'https://images.unsplash.com/photo-1587300003388-59208cc962cb?w=400',
-    'https://images.unsplash.com/photo-1574158622682-e40e69881006?w=400',
-    'https://images.unsplash.com/photo-1450778869180-41d0601e046e?w=400',
-    'https://images.unsplash.com/photo-1548681528-6a5c45b66b42?w=400',
-    'https://images.unsplash.com/photo-1583511655857-d19b40a7a54e?w=400',
-    'https://images.unsplash.com/photo-1560807707-8cc77767d783?w=400',
-  ];
-
-  // Tüm postları BlogCard formatında listele (Instagram galerisi için)
-  const profileBlogs: ProfileBlogCard[] = userBlogs.map((image, index) => ({
-    author: { name: user.name, avatar: user.avatar },
-    date: 'Birkaç gün önce',
-    image,
+  const profileBlogs: ProfileBlogCard[] = userPosts.map((post) => ({
+    id: post.id,
+    author: { id: user.id, name: user.name, avatar: user.avatar ?? DEFAULT_AVATAR_URL },
+    date: formatRelativePostTime(post.createdAt),
+    image: post.image,
     title: '',
-    description: user.bio || 'Hayvan sever 🐾',
-    likes: 5 + (index % 30),
-    comments: index % 15,
+    description: post.content,
+    likes: post.likes,
+    comments: post.comments,
     category: 'Post',
+    isSaved: post.isSaved,
   }));
 
-  const openBlogGallery = (index) => {
-    navigation.navigate('BlogDetail', { blogs: profileBlogs, initialIndex: index });
+  const savedProfileBlogs: ProfileBlogCard[] = savedPosts.map((post) => ({
+    id: post.id,
+    author: { id: post.author.id, name: post.author.name, avatar: post.author.avatar },
+    date: formatRelativePostTime(post.createdAt),
+    image: post.image,
+    title: '',
+    description: post.content,
+    likes: post.likes,
+    comments: post.comments,
+    category: post.category ?? 'Post',
+    isSaved: post.isSaved,
+  }));
+
+  const openBlogGallery = (index: number) => {
+    navigation.navigate('ProfilePostFeed', { posts: profileBlogs, initialIndex: index, source: 'posts' });
   };
 
-  // Cover photo - rastgele hayvan temalı
-  const coverPhoto = 'https://images.unsplash.com/photo-1450778869180-41d0601e046e?w=800';
+  const openSavedGallery = (index: number) => {
+    navigation.navigate('ProfilePostFeed', { posts: savedProfileBlogs, initialIndex: index, source: 'saved' });
+  };
 
   // Drawer açma/kapama fonksiyonları
   const openDrawer = () => {
@@ -164,7 +192,7 @@ const ProfileScreen = ({ navigation, onLogout }: ProfileScreenProps & ProfileScr
       title: 'Profili Düzenle', 
       action: () =>
         closeDrawer(() =>
-          navigation.navigate('EditProfile', { user: user as unknown as Partial<ProfileRecord> })
+          navigation.navigate('EditProfile', { user: profile ?? (user as unknown as Partial<ProfileRecord>) })
         )
     },
     { 
@@ -271,19 +299,22 @@ const ProfileScreen = ({ navigation, onLogout }: ProfileScreenProps & ProfileScr
       >
         {/* Cover Photo Section */}
         <View style={styles.coverSection}>
-          <ImageBackground
-            source={{ uri: coverPhoto }}
-            style={styles.coverPhoto}
-            imageStyle={styles.coverPhotoImage}
-          >
-            {/* Gradient Overlay */}
-            <View style={styles.coverOverlay} />
-          </ImageBackground>
+          {user.coverPhoto ? (
+            <ImageBackground
+              source={{ uri: user.coverPhoto }}
+              style={styles.coverPhoto}
+              imageStyle={styles.coverPhotoImage}
+            >
+              <View style={styles.coverOverlay} />
+            </ImageBackground>
+          ) : (
+            <View style={[styles.coverPhoto, styles.defaultCoverPhoto]} />
+          )}
 
           {/* Avatar positioned over cover photo */}
           <View style={styles.avatarContainer}>
             <Image
-              source={{ uri: user.avatar }}
+              source={{ uri: user.avatar ?? DEFAULT_AVATAR_URL }}
               style={styles.avatar}
             />
           </View>
@@ -294,7 +325,10 @@ const ProfileScreen = ({ navigation, onLogout }: ProfileScreenProps & ProfileScr
           <Text style={styles.name}>{user.name}</Text>
           <Text style={styles.username}>@{user.username}</Text>
 
-          <Text style={styles.bio}>{user.bio}</Text>
+          {user.bio ? <Text style={styles.bio}>{user.bio}</Text> : null}
+          {isLoadingProfile && !profile ? (
+            <ActivityIndicator size="small" color={COLORS.primary} style={styles.profileLoader} />
+          ) : null}
 
           {/* Stats */}
           <View style={styles.statsContainer}>
@@ -367,21 +401,30 @@ const ProfileScreen = ({ navigation, onLogout }: ProfileScreenProps & ProfileScr
 
         {/* Blog Grid */}
         {activeTab === 'blogs' && (
-          <View style={styles.blogGrid}>
-            {userBlogs.map((image, index) => (
-              <TouchableOpacity
-                key={index}
-                style={styles.blogGridItem}
-                onPress={() => openBlogGallery(index)}
-                activeOpacity={0.9}
-              >
-                <Image
-                  source={{ uri: image }}
-                  style={styles.blogGridImage}
-                />
-              </TouchableOpacity>
-            ))}
-          </View>
+          userPosts.length > 0 ? (
+            <View style={styles.blogGrid}>
+              {userPosts.map((post, index) => (
+                <TouchableOpacity
+                  key={post.id}
+                  style={styles.blogGridItem}
+                  onPress={() => openBlogGallery(index)}
+                  activeOpacity={0.9}
+                >
+                  <Image
+                    source={{ uri: post.image }}
+                    style={styles.blogGridImage}
+                  />
+                </TouchableOpacity>
+              ))}
+            </View>
+          ) : (
+            <View style={styles.emptyState}>
+              <Text style={styles.emptyStateIcon}>🖼️</Text>
+              <Text style={styles.emptyStateText}>
+                {isLoadingPosts ? 'Postlar yükleniyor' : 'Henüz post yok'}
+              </Text>
+            </View>
+          )
         )}
 
         {/* Announcements Placeholder */}
@@ -394,10 +437,30 @@ const ProfileScreen = ({ navigation, onLogout }: ProfileScreenProps & ProfileScr
 
         {/* Saved Placeholder */}
         {activeTab === 'saved' && (
-          <View style={styles.emptyState}>
-            <Text style={styles.emptyStateIcon}>🔖</Text>
-            <Text style={styles.emptyStateText}>Henüz kaydedilen içerik yok</Text>
-          </View>
+          savedPosts.length > 0 ? (
+            <View style={styles.blogGrid}>
+              {savedPosts.map((post, index) => (
+                <TouchableOpacity
+                  key={post.id}
+                  style={styles.blogGridItem}
+                  onPress={() => openSavedGallery(index)}
+                  activeOpacity={0.9}
+                >
+                  <Image
+                    source={{ uri: post.image }}
+                    style={styles.blogGridImage}
+                  />
+                </TouchableOpacity>
+              ))}
+            </View>
+          ) : (
+            <View style={styles.emptyState}>
+              <Text style={styles.emptyStateIcon}>🔖</Text>
+              <Text style={styles.emptyStateText}>
+                {isLoadingSavedPosts ? 'Kaydedilenler yükleniyor' : 'Henüz kaydedilen içerik yok'}
+              </Text>
+            </View>
+          )
         )}
       </ScrollView>
 
@@ -423,7 +486,7 @@ const ProfileScreen = ({ navigation, onLogout }: ProfileScreenProps & ProfileScr
                 <View style={[styles.drawerHeader, { paddingTop: insets.top + SPACING.md }]}>
                   <View style={styles.drawerUserInfo}>
                     <Image
-                      source={{ uri: user.avatar }}
+                      source={{ uri: user.avatar ?? DEFAULT_AVATAR_URL }}
                       style={styles.drawerAvatar}
                     />
                     <View style={styles.drawerUserText}>
@@ -505,6 +568,9 @@ const styles = StyleSheet.create({
   coverPhotoImage: {
     resizeMode: 'cover',
   },
+  defaultCoverPhoto: {
+    backgroundColor: '#CFD3D7',
+  },
   coverOverlay: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: 'rgba(0, 0, 0, 0.3)',
@@ -554,6 +620,9 @@ const styles = StyleSheet.create({
     fontSize: FONT_SIZES.md,
     color: COLORS.darkGray,
     textAlign: 'center',
+    marginBottom: SPACING.lg,
+  },
+  profileLoader: {
     marginBottom: SPACING.lg,
   },
   statsContainer: {

@@ -1,39 +1,44 @@
-import React, { useState, useEffect, useRef, useCallback, useMemo, memo } from 'react';
+import React, { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  View,
-  Text,
-  StyleSheet,
-  Modal,
-  TouchableOpacity,
-  TouchableWithoutFeedback,
-  FlatList,
-  TextInput,
+  ActivityIndicator,
+  Alert,
   Animated,
-  Platform,
-  Image,
   Dimensions,
+  FlatList,
+  Image,
   Keyboard,
+  Modal,
+  Platform,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native';
+import { AxiosError } from 'axios';
 import { FontAwesome } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { COLORS, SPACING, FONT_SIZES, FONTS } from '../../constants';
+import { COLORS, FONT_SIZES, FONTS, SPACING } from '../../constants';
+import { getStoredAuthSession } from '../../services/auth';
+import {
+  createPostComment,
+  deletePostComment,
+  likePostComment,
+  listPostComments,
+  type PostCommentRecord,
+  unlikePostComment,
+} from '../../services/posts';
 import type {
   NativeSyntheticEvent,
   TextInputContentSizeChangeEventData,
-  TextStyle,
 } from 'react-native';
 
-// Constants
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 const ANIMATION_CONFIG = {
   SLIDE_SPRING_TENSION: 50,
   SLIDE_SPRING_FRICTION: 8,
   SLIDE_DURATION: 250,
-  HEART_SCALE_MAX: 1.3,
-  HEART_SCALE_NORMAL: 1,
-  HEART_SPRING_TENSION: 400,
-  HEART_SPRING_FRICTION: 7,
   SEND_BUTTON_SCALE_MIN: 0.85,
   SEND_BUTTON_SCALE_NORMAL: 1,
   SEND_BUTTON_SPRING_TENSION: 400,
@@ -48,17 +53,16 @@ const INPUT_CONFIG = {
 };
 
 const TIMING_CONFIG = {
-  DOUBLE_TAP_DELAY: 300,
   MODAL_HEADER_OFFSET: 40,
   INPUT_PADDING_BOTTOM: 8,
   COMMENTS_LIST_BOTTOM_PADDING: 80,
+  DELETE_LONG_PRESS_DELAY: 3000,
 };
 
 const ICON_SIZES = {
   HEART: 16,
   SEND: 14,
   AVATAR: 36,
-  INPUT_AVATAR: 32,
   HEADER_HANDLE_WIDTH: 40,
   HEADER_HANDLE_HEIGHT: 4,
 };
@@ -68,113 +72,138 @@ const COLORS_CONFIG = {
   MODAL_OVERLAY: 'rgba(0, 0, 0, 0.5)',
 };
 
-const DEFAULT_PROPS = {
-  comments: [],
-  category: 'Sağlık',
-};
-
-const DEFAULT_AVATAR = 'https://i.pravatar.cc/150?img=10';
-
-type CommentUser = {
-  name: string;
-  avatar: string;
-};
-
-type CommentRecord = {
-  id: string;
-  user: CommentUser;
-  text: string;
-  timestamp: string;
-  likes: number;
-  isLiked: boolean;
-};
-
-type CommentLikeState = {
-  likes: number;
-  isLiked: boolean;
-};
+const DEFAULT_AVATAR_URL =
+  'https://abs.twimg.com/sticky/default_profile_images/default_profile_400x400.png';
 
 type CommentsModalProps = {
   visible: boolean;
   onClose?: () => void;
-  comments?: CommentRecord[];
+  postId?: string;
   postAuthor?: { name?: string };
+  postAuthorId?: string;
   category?: string;
   postTitle?: string;
+  onCommentCountChange?: (delta: number) => void;
 };
 
-/**
- * CommentsModal Component
- * 
- * Displays a bottom sheet modal with comments for a blog post.
- * Features Instagram-style like animations, double-tap to like, and comment input.
- * 
- * @param {Object} props - Component props
- * @param {boolean} props.visible - Whether the modal is visible
- * @param {Function} props.onClose - Callback when modal is closed
- * @param {Array} props.comments - Array of comments (optional, currently uses mock data)
- * @param {Object} props.postAuthor - Post author information
- * @param {string} props.category - Post category
- * @param {string} props.postTitle - Post title
- */
+function formatCommentTime(createdAt: string | null) {
+  if (!createdAt) {
+    return 'Şimdi';
+  }
+
+  const diffInSeconds = Math.max(0, Math.floor((Date.now() - new Date(createdAt).getTime()) / 1000));
+
+  if (diffInSeconds < 60) return 'Şimdi';
+  if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)}dk`;
+  if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)}sa`;
+  if (diffInSeconds < 604800) return `${Math.floor(diffInSeconds / 86400)}g`;
+
+  return new Date(createdAt).toLocaleDateString('tr-TR', {
+    day: 'numeric',
+    month: 'short',
+  });
+}
+
 const CommentsModal = ({
   visible,
   onClose,
-  comments = DEFAULT_PROPS.comments,
+  postId,
   postAuthor,
-  category = DEFAULT_PROPS.category,
-  postTitle,
-}: CommentsModalProps): React.JSX.Element | null => {
+  postAuthorId,
+  onCommentCountChange,
+}: CommentsModalProps): React.JSX.Element => {
   const insets = useSafeAreaInsets();
-  
-  // State management
   const [commentText, setCommentText] = useState('');
   const [inputHeight, setInputHeight] = useState(INPUT_CONFIG.DEFAULT_HEIGHT);
-  const [commentLikes, setCommentLikes] = useState<Record<string, CommentLikeState>>({});
   const [keyboardHeight, setKeyboardHeight] = useState(0);
+  const [comments, setComments] = useState<PostCommentRecord[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [isSending, setIsSending] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [ownUserId, setOwnUserId] = useState<string | null>(null);
 
-  // Refs
   const slideAnim = useRef(new Animated.Value(SCREEN_HEIGHT)).current;
   const inputRef = useRef<TextInput | null>(null);
-  const heartScales = useRef<Record<string, Animated.Value>>({}).current;
-  const commentLastTaps = useRef<Record<string, number | null>>({}).current;
   const sendButtonScale = useRef(new Animated.Value(ANIMATION_CONFIG.SEND_BUTTON_SCALE_NORMAL)).current;
 
-  /**
-   * Handles modal slide animation
-   */
+  const modalHeight = useMemo(
+    () => SCREEN_HEIGHT - insets.top - TIMING_CONFIG.MODAL_HEADER_OFFSET,
+    [insets.top],
+  );
+  const inputPaddingBottom = useMemo(
+    () =>
+      Platform.OS === 'ios'
+        ? Math.max(insets.bottom, TIMING_CONFIG.INPUT_PADDING_BOTTOM)
+        : TIMING_CONFIG.INPUT_PADDING_BOTTOM,
+    [insets.bottom],
+  );
+  const placeholderText = useMemo(
+    () => `${postAuthor?.name || 'Gönderi'} için yorum ekle...`,
+    [postAuthor?.name],
+  );
+  const hasCommentText = useMemo(() => commentText.trim().length > 0, [commentText]);
+
+  const loadComments = useCallback(async () => {
+    if (!postId) {
+      setComments([]);
+      setErrorMessage(null);
+      return;
+    }
+
+    setIsLoading(true);
+    setErrorMessage(null);
+
+    try {
+      const [session, postComments] = await Promise.all([
+        getStoredAuthSession(),
+        listPostComments(postId),
+      ]);
+
+      setOwnUserId(session?.profile?.id ?? session?.user?.id ?? null);
+      setComments(postComments);
+    } catch (error) {
+      setComments([]);
+
+      if (error instanceof AxiosError && error.response?.status === 503) {
+        setErrorMessage('Yorumlar şu anda yüklenemiyor.');
+      } else {
+        setErrorMessage('Yorumlar yüklenirken bir hata oluştu.');
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  }, [postId]);
+
   useEffect(() => {
-    if (visible) {
-      Animated.spring(slideAnim, {
-        toValue: 0,
-        useNativeDriver: true,
-        tension: ANIMATION_CONFIG.SLIDE_SPRING_TENSION,
-        friction: ANIMATION_CONFIG.SLIDE_SPRING_FRICTION,
-      }).start();
-    } else {
+    if (!visible) {
       Animated.timing(slideAnim, {
         toValue: SCREEN_HEIGHT,
         duration: ANIMATION_CONFIG.SLIDE_DURATION,
         useNativeDriver: true,
       }).start();
+      return;
     }
-  }, [visible, slideAnim]);
 
-  /**
-   * Handles keyboard show/hide events
-   */
+    void loadComments();
+    Animated.spring(slideAnim, {
+      toValue: 0,
+      useNativeDriver: true,
+      tension: ANIMATION_CONFIG.SLIDE_SPRING_TENSION,
+      friction: ANIMATION_CONFIG.SLIDE_SPRING_FRICTION,
+    }).start();
+  }, [loadComments, slideAnim, visible]);
+
   useEffect(() => {
     if (!visible) return;
 
     const keyboardShowEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
     const keyboardHideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
 
-    const keyboardWillShow = Keyboard.addListener(keyboardShowEvent, (e) => {
-        setKeyboardHeight(e.endCoordinates.height);
+    const keyboardWillShow = Keyboard.addListener(keyboardShowEvent, (event) => {
+      setKeyboardHeight(event.endCoordinates.height);
     });
-
     const keyboardWillHide = Keyboard.addListener(keyboardHideEvent, () => {
-        setKeyboardHeight(0);
+      setKeyboardHeight(0);
     });
 
     return () => {
@@ -183,9 +212,6 @@ const CommentsModal = ({
     };
   }, [visible]);
 
-  /**
-   * Closes the modal with animation
-   */
   const handleClose = useCallback(() => {
     Animated.timing(slideAnim, {
       toValue: SCREEN_HEIGHT,
@@ -194,11 +220,8 @@ const CommentsModal = ({
     }).start(() => {
       onClose?.();
     });
-  }, [slideAnim, onClose]);
+  }, [onClose, slideAnim]);
 
-  /**
-   * Triggers send button scale animation
-   */
   const triggerSendButtonAnimation = useCallback(() => {
     Animated.sequence([
       Animated.spring(sendButtonScale, {
@@ -216,321 +239,197 @@ const CommentsModal = ({
     ]).start();
   }, [sendButtonScale]);
 
-  /**
-   * Handles sending a comment
-   */
-  const handleSendComment = useCallback(() => {
+  const handleSendComment = useCallback(async () => {
     const trimmedText = commentText.trim();
-    if (!trimmedText) return;
+    if (!postId || !trimmedText || isSending) return;
 
-    // Trigger scale animation
     triggerSendButtonAnimation();
+    setIsSending(true);
 
-    // TODO: Implement actual comment sending API call
-    if (__DEV__) {
-      console.log('Yorum gönderiliyor:', trimmedText);
-    }
-
-    // Clear input and reset height
+    try {
+      const createdComment = await createPostComment(postId, trimmedText);
+      setComments((currentComments) => [createdComment, ...currentComments]);
+      onCommentCountChange?.(1);
       setCommentText('');
-    setInputHeight(INPUT_CONFIG.DEFAULT_HEIGHT);
-      
-    // Blur input to close keyboard
-    inputRef.current?.blur();
-  }, [commentText, triggerSendButtonAnimation]);
+      setInputHeight(INPUT_CONFIG.DEFAULT_HEIGHT);
+      inputRef.current?.blur();
+    } catch {
+      Alert.alert('Hata', 'Yorum gönderilemedi. Lütfen tekrar deneyin.');
+    } finally {
+      setIsSending(false);
+    }
+  }, [commentText, isSending, onCommentCountChange, postId, triggerSendButtonAnimation]);
 
-  /**
-   * Handles input content size change for multiline input
-   */
   const handleContentSizeChange = useCallback((
     event: NativeSyntheticEvent<TextInputContentSizeChangeEventData>,
   ) => {
     const height = event.nativeEvent.contentSize.height;
     const newHeight = Math.min(
       Math.max(INPUT_CONFIG.MIN_HEIGHT, height),
-      INPUT_CONFIG.MAX_HEIGHT
+      INPUT_CONFIG.MAX_HEIGHT,
     );
     setInputHeight(newHeight);
   }, []);
 
-  /**
-   * Triggers the Instagram-style heart scale animation for a comment
-   */
-  const triggerCommentHeartAnimation = useCallback((commentId: string) => {
-    if (!heartScales[commentId]) {
-      heartScales[commentId] = new Animated.Value(ANIMATION_CONFIG.HEART_SCALE_NORMAL);
+  const handleDeleteComment = useCallback((comment: PostCommentRecord) => {
+    const canDelete = Boolean(
+      ownUserId && (ownUserId === comment.user_id || ownUserId === postAuthorId),
+    );
+
+    if (!canDelete) {
+      return;
     }
 
-    Animated.sequence([
-      Animated.spring(heartScales[commentId], {
-        toValue: ANIMATION_CONFIG.HEART_SCALE_MAX,
-        useNativeDriver: true,
-        tension: ANIMATION_CONFIG.HEART_SPRING_TENSION,
-        friction: ANIMATION_CONFIG.HEART_SPRING_FRICTION,
-      }),
-      Animated.spring(heartScales[commentId], {
-        toValue: ANIMATION_CONFIG.HEART_SCALE_NORMAL,
-        useNativeDriver: true,
-        tension: ANIMATION_CONFIG.HEART_SPRING_TENSION,
-        friction: ANIMATION_CONFIG.HEART_SPRING_FRICTION,
-      }),
-    ]).start();
-  }, [heartScales]);
-
-  /**
-   * Handles like/unlike a comment
-   */
-  const handleLikeComment = useCallback((commentId: string, currentLikes: number, isLiked: boolean) => {
-    const newLikedState = !isLiked;
-
-    setCommentLikes((prev) => ({
-      ...prev,
-      [commentId]: {
-        likes: newLikedState ? currentLikes + 1 : currentLikes - 1,
-        isLiked: newLikedState,
+    Alert.alert('Yorumu Sil', 'Bu yorumu silmek istiyor musunuz?', [
+      { text: 'Vazgeç', style: 'cancel' },
+      {
+        text: 'Sil',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            await deletePostComment(comment.id);
+            setComments((currentComments) =>
+              currentComments.filter((currentComment) => currentComment.id !== comment.id),
+            );
+            onCommentCountChange?.(-1);
+          } catch {
+            Alert.alert('Hata', 'Yorum silinemedi. Lütfen tekrar deneyin.');
+          }
+        },
       },
-    }));
+    ]);
+  }, [onCommentCountChange, ownUserId, postAuthorId]);
 
-    if (newLikedState) {
-      triggerCommentHeartAnimation(commentId);
+  const handleToggleCommentLike = useCallback(async (comment: PostCommentRecord) => {
+    const nextIsLiked = !comment.is_liked;
+    const nextLikesCount = Math.max(0, comment.likes_count + (nextIsLiked ? 1 : -1));
+
+    setComments((currentComments) =>
+      currentComments.map((currentComment) =>
+        currentComment.id === comment.id
+          ? {
+              ...currentComment,
+              is_liked: nextIsLiked,
+              likes_count: nextLikesCount,
+            }
+          : currentComment,
+      ),
+    );
+
+    try {
+      const updatedComment = nextIsLiked
+        ? await likePostComment(comment.id)
+        : await unlikePostComment(comment.id);
+
+      setComments((currentComments) =>
+        currentComments.map((currentComment) =>
+          currentComment.id === updatedComment.id ? updatedComment : currentComment,
+        ),
+      );
+    } catch {
+      setComments((currentComments) =>
+        currentComments.map((currentComment) =>
+          currentComment.id === comment.id ? comment : currentComment,
+        ),
+      );
+      Alert.alert('Hata', 'Yorum beğenisi güncellenemedi. Lütfen tekrar deneyin.');
     }
-  }, [triggerCommentHeartAnimation]);
+  }, []);
 
-  /**
-   * Handles double tap on comment to like
-   */
-  const handleCommentDoubleTap = useCallback((commentId: string, commentLikeState: CommentLikeState) => {
-    const now = Date.now();
+  const renderComment = useCallback(({ item }: { item: PostCommentRecord }) => {
+    const canDelete = Boolean(
+      ownUserId && (ownUserId === item.user_id || ownUserId === postAuthorId),
+    );
 
-    if (
-      commentLastTaps[commentId] &&
-      now - commentLastTaps[commentId] < TIMING_CONFIG.DOUBLE_TAP_DELAY
-    ) {
-      // Double tap detected - like the comment if not already liked
-      if (!commentLikeState.isLiked) {
-        handleLikeComment(commentId, commentLikeState.likes, commentLikeState.isLiked);
-      }
-      commentLastTaps[commentId] = null;
-    } else {
-      commentLastTaps[commentId] = now;
-    }
-  }, [handleLikeComment]);
-
-  /**
-   * Gets category-specific mock comments
-   * TODO: Replace with actual API call
-   */
-  const getCategoryComments = useCallback(() => {
-    const commentsByCategory: Record<string, CommentRecord[]> = {
-      Sağlık: [
-        {
-          id: '1',
-          user: { name: 'Dr. Mehmet Yılmaz', avatar: 'https://i.pravatar.cc/150?img=11' },
-          text: 'Çok önemli bilgiler paylaşmışsınız, teşekkürler! 🐾',
-          timestamp: '5dk',
-          likes: 24,
-          isLiked: false,
-        },
-        {
-          id: '2',
-          user: { name: 'Ayşe Kaya', avatar: 'https://i.pravatar.cc/150?img=5' },
-          text: 'Bu konuda veterinere danışmak en doğrusu',
-          timestamp: '12dk',
-          likes: 12,
-          isLiked: false,
-        },
-        {
-          id: '3',
-          user: { name: 'Can Arslan', avatar: 'https://i.pravatar.cc/150?img=12' },
-          text: 'Sokak hayvanları için çok faydalı bir paylaşım 🙏',
-          timestamp: '1s',
-          likes: 89,
-          isLiked: true,
-        },
-        {
-          id: '4',
-          user: { name: 'Elif Şahin', avatar: 'https://i.pravatar.cc/150?img=16' },
-          text: 'Veteriner arkadaşlara sordum, çok doğru bilgiler 👍',
-          timestamp: '25dk',
-          likes: 34,
-          isLiked: false,
-        },
-      ],
-      'Mama & Barınma': [
-        {
-          id: '1',
-          user: { name: 'Zeynep Demir', avatar: 'https://i.pravatar.cc/150?img=9' },
-          text: 'Kış aylarında mama desteği çok önemli! 🥘',
-          timestamp: '3dk',
-          likes: 45,
-          isLiked: false,
-        },
-        {
-          id: '2',
-          user: { name: 'Murat Öztürk', avatar: 'https://i.pravatar.cc/150?img=15' },
-          text: 'Biz de mahallemizde düzenli mama bırakıyoruz',
-          timestamp: '8dk',
-          likes: 67,
-          isLiked: true,
-        },
-        {
-          id: '3',
-          user: { name: 'Elif Yıldız', avatar: 'https://i.pravatar.cc/150?img=20' },
-          text: 'Harika bir inisiyatif! Nasıl yardımcı olabilirim?',
-          timestamp: '15dk',
-          likes: 23,
-          isLiked: false,
-        },
-        {
-          id: '4',
-          user: { name: 'Ali Kılıç', avatar: 'https://i.pravatar.cc/150?img=14' },
-          text: 'Bizim mahallede de başlatalım bunu 🐕',
-          timestamp: '30dk',
-          likes: 56,
-          isLiked: false,
-        },
-      ],
-      'Yardım Hikayeleri': [
-        {
-          id: '1',
-          user: { name: 'Ahmet Kara', avatar: 'https://i.pravatar.cc/150?img=13' },
-          text: 'Çok duygulandım, harika bir iş yapmışsınız! ❤️',
-          timestamp: '2dk',
-          likes: 156,
-          isLiked: true,
-        },
-        {
-          id: '2',
-          user: { name: 'Selin Çelik', avatar: 'https://i.pravatar.cc/150?img=8' },
-          text: 'Bu tür hikayeleri okumak çok güzel 🥺',
-          timestamp: '7dk',
-          likes: 92,
-          isLiked: false,
-        },
-        {
-          id: '3',
-          user: { name: 'Burak Aksoy', avatar: 'https://i.pravatar.cc/150?img=18' },
-          text: 'Siz de meleksiniz! 🙏✨',
-          timestamp: '20dk',
-          likes: 203,
-          isLiked: true,
-        },
-        {
-          id: '4',
-          user: { name: 'Fatma Yılmaz', avatar: 'https://i.pravatar.cc/150?img=19' },
-          text: 'Ne güzel insanlarsınız, Allah razı olsun 🤲',
-          timestamp: '45dk',
-          likes: 178,
-          isLiked: false,
-        },
-      ],
-    };
-
-    return commentsByCategory[category] || commentsByCategory[DEFAULT_PROPS.category];
-  }, [category]);
-
-  // Memoized values
-  const mockComments = useMemo(() => getCategoryComments(), [getCategoryComments]);
-  const modalHeight = useMemo(
-    () => SCREEN_HEIGHT - insets.top - TIMING_CONFIG.MODAL_HEADER_OFFSET,
-    [insets.top]
-  );
-  const inputPaddingBottom = useMemo(
-    () => (Platform.OS === 'ios' ? Math.max(insets.bottom, TIMING_CONFIG.INPUT_PADDING_BOTTOM) : TIMING_CONFIG.INPUT_PADDING_BOTTOM),
-    [insets.bottom]
-  );
-  const placeholderText = useMemo(
-    () => `${postAuthor?.name || 'Gönderi'} için yorum ekle...`,
-    [postAuthor?.name]
-  );
-  const hasCommentText = useMemo(() => commentText.trim().length > 0, [commentText]);
-
-  /**
-   * Renders a single comment item
-   */
-  const renderComment = useCallback(({ item }: { item: CommentRecord }) => {
-    const commentLikeState = commentLikes[item.id] || {
-      likes: item.likes,
-      isLiked: item.isLiked,
-    };
-
-    // Initialize heart scale animation for this comment if not exists
-    if (!heartScales[item.id]) {
-      heartScales[item.id] = new Animated.Value(ANIMATION_CONFIG.HEART_SCALE_NORMAL);
-    }
-
-    const heartIconName = commentLikeState.isLiked ? 'heart' : 'heart-o';
-    const heartIconColor = commentLikeState.isLiked
-      ? COLORS_CONFIG.HEART_LIKED
-      : COLORS.secondary;
-    
     return (
-      <View style={styles.commentItem} testID={`comment-item-${item.id}`}>
+      <TouchableOpacity
+        style={styles.commentItem}
+        testID={`comment-item-${item.id}`}
+        activeOpacity={0.9}
+        delayLongPress={TIMING_CONFIG.DELETE_LONG_PRESS_DELAY}
+        onLongPress={canDelete ? () => handleDeleteComment(item) : undefined}
+      >
         <Image
-          source={{ uri: item.user.avatar }}
+          source={{ uri: item.author.avatar_url ?? DEFAULT_AVATAR_URL }}
           style={styles.commentAvatar}
           resizeMode="cover"
-          accessibilityLabel={`${item.user.name} avatar`}
+          accessibilityLabel={`${item.author.full_name} avatar`}
         />
-        <TouchableWithoutFeedback
-          onPress={() => handleCommentDoubleTap(item.id, commentLikeState)}
-          accessibilityRole="button"
-        >
         <View style={styles.commentContent}>
           <View style={styles.commentTextContainer}>
-              <Text style={styles.commentUsername} numberOfLines={1}>
-                {item.user.name}
-              </Text>
+            <Text style={styles.commentUsername} numberOfLines={1}>
+              {item.author.full_name}
+            </Text>
             <Text style={styles.commentText}>{item.text}</Text>
           </View>
           <View style={styles.commentFooter}>
-            <Text style={styles.commentTimestamp}>{item.timestamp}</Text>
-            {commentLikeState.likes > 0 && (
+            <Text style={styles.commentTimestamp}>{formatCommentTime(item.created_at)}</Text>
+            {item.likes_count > 0 && (
               <>
                 <Text style={styles.commentDot}>•</Text>
-                  <Text style={styles.commentLikes}>
-                    {commentLikeState.likes} beğeni
-                  </Text>
+                <Text style={styles.commentLikes}>{item.likes_count} beğeni</Text>
               </>
             )}
           </View>
         </View>
-        </TouchableWithoutFeedback>
-        <TouchableOpacity 
+        <TouchableOpacity
           style={styles.commentLikeButton}
-          onPress={() =>
-            handleLikeComment(item.id, commentLikeState.likes, commentLikeState.isLiked)
-          }
+          onPress={() => {
+            void handleToggleCommentLike(item);
+          }}
           activeOpacity={0.7}
-          accessibilityLabel={
-            commentLikeState.isLiked ? 'Unlike comment' : 'Like comment'
-          }
+          accessibilityLabel={item.is_liked ? 'Yorum beğenisini kaldır' : 'Yorumu beğen'}
           accessibilityRole="button"
-          accessibilityState={{ selected: commentLikeState.isLiked }}
+          accessibilityState={{ selected: item.is_liked }}
         >
-          <Animated.View
-            style={[
-              styles.commentHeartContainer,
-              {
-                transform: [{ scale: heartScales[item.id] }],
-              },
-            ]}
-          >
-            <FontAwesome
-              name={heartIconName}
-              size={ICON_SIZES.HEART}
-              color={heartIconColor}
-            />
-          </Animated.View>
+          <FontAwesome
+            name={item.is_liked ? 'heart' : 'heart-o'}
+            size={ICON_SIZES.HEART}
+            color={item.is_liked ? COLORS_CONFIG.HEART_LIKED : COLORS.secondary}
+          />
         </TouchableOpacity>
-      </View>
+      </TouchableOpacity>
     );
-  }, [commentLikes, handleCommentDoubleTap, handleLikeComment, heartScales]);
+  }, [handleDeleteComment, handleToggleCommentLike, ownUserId, postAuthorId]);
 
-  /**
-   * Key extractor for FlatList
-   */
-  const keyExtractor = useCallback((item: CommentRecord) => item.id, []);
+  const keyExtractor = useCallback((item: PostCommentRecord) => item.id, []);
+
+  const renderCommentsContent = () => {
+    if (isLoading) {
+      return (
+        <View style={styles.stateContainer}>
+          <ActivityIndicator color={COLORS.primary} />
+        </View>
+      );
+    }
+
+    if (errorMessage) {
+      return (
+        <View style={styles.stateContainer}>
+          <Text style={styles.stateText}>{errorMessage}</Text>
+        </View>
+      );
+    }
+
+    return (
+      <FlatList
+        data={comments}
+        renderItem={renderComment}
+        keyExtractor={keyExtractor}
+        style={styles.commentsList}
+        contentContainerStyle={styles.commentsListContent}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="always"
+        keyboardDismissMode="none"
+        ListEmptyComponent={
+          <View style={styles.stateContainer}>
+            <Text style={styles.stateText}>Henüz yorum yok</Text>
+          </View>
+        }
+        testID="comments-list"
+      />
+    );
+  };
 
   return (
     <Modal
@@ -542,14 +441,14 @@ const CommentsModal = ({
       testID="comments-modal"
     >
       <View style={styles.modalOverlay}>
-        <TouchableOpacity 
-          style={styles.backdrop} 
-          activeOpacity={1} 
+        <TouchableOpacity
+          style={styles.backdrop}
+          activeOpacity={1}
           onPress={handleClose}
           accessibilityLabel="Close comments modal"
           accessibilityRole="button"
         />
-        
+
         <Animated.View
           style={[
             styles.modalContainer,
@@ -560,41 +459,22 @@ const CommentsModal = ({
             },
           ]}
         >
-          {/* Header */}
           <View style={styles.header}>
             <View style={styles.headerHandle} />
             <Text style={styles.headerTitle}>Yorumlar</Text>
           </View>
 
-          {/* Comments List */}
-          <FlatList
-            data={mockComments}
-            renderItem={renderComment}
-            keyExtractor={keyExtractor}
-            style={styles.commentsList}
-            contentContainerStyle={styles.commentsListContent}
-            showsVerticalScrollIndicator={false}
-            keyboardShouldPersistTaps="always"
-            keyboardDismissMode="none"
-            testID="comments-list"
-          />
+          {renderCommentsContent()}
 
-          {/* Input Area */}
-          <View 
+          <View
             style={[
-              styles.inputContainer, 
-              { 
+              styles.inputContainer,
+              {
                 bottom: keyboardHeight > 0 ? keyboardHeight : 0,
                 paddingBottom: inputPaddingBottom,
               },
             ]}
           >
-            <Image
-              source={{ uri: DEFAULT_AVATAR }}
-              style={styles.inputAvatar}
-              resizeMode="cover"
-              accessibilityLabel="Your avatar"
-            />
             <View style={[styles.inputWrapper, { height: inputHeight }]}>
               <TextInput
                 ref={inputRef}
@@ -615,9 +495,10 @@ const CommentsModal = ({
               />
               {hasCommentText && (
                 <TouchableOpacity
-                  style={styles.sendButton}
+                  style={[styles.sendButton, isSending && styles.sendButtonDisabled]}
                   activeOpacity={0.7}
                   onPress={handleSendComment}
+                  disabled={isSending}
                   accessibilityLabel="Send comment"
                   accessibilityRole="button"
                   testID="send-comment-button"
@@ -646,7 +527,6 @@ const CommentsModal = ({
   );
 };
 
-// Memoize component to prevent unnecessary re-renders
 const MemoizedCommentsModal = memo(CommentsModal);
 
 const styles = StyleSheet.create({
@@ -697,7 +577,7 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     fontSize: FONT_SIZES.lg,
-    fontFamily: FONTS.text, // SF Pro Text (16px is below Display threshold)
+    fontFamily: FONTS.text,
     fontWeight: '600',
     color: COLORS.secondary,
   },
@@ -705,8 +585,22 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   commentsListContent: {
+    flexGrow: 1,
     paddingVertical: SPACING.sm,
     paddingBottom: TIMING_CONFIG.COMMENTS_LIST_BOTTOM_PADDING,
+  },
+  stateContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: SPACING.xl,
+    paddingVertical: SPACING.xl,
+  },
+  stateText: {
+    fontSize: FONT_SIZES.md,
+    fontFamily: FONTS.text,
+    color: COLORS.gray,
+    textAlign: 'center',
   },
   commentItem: {
     flexDirection: 'row',
@@ -732,14 +626,14 @@ const styles = StyleSheet.create({
   },
   commentUsername: {
     fontSize: FONT_SIZES.sm,
-    fontFamily: FONTS.text, // SF Pro Text for usernames
+    fontFamily: FONTS.text,
     fontWeight: '600',
     color: COLORS.secondary,
     marginBottom: 2,
   },
   commentText: {
     fontSize: FONT_SIZES.sm,
-    fontFamily: FONTS.text, // SF Pro Text for comment text
+    fontFamily: FONTS.text,
     color: COLORS.secondary,
     lineHeight: FONT_SIZES.sm * 1.5,
   },
@@ -751,18 +645,18 @@ const styles = StyleSheet.create({
   },
   commentTimestamp: {
     fontSize: FONT_SIZES.xs,
-    fontFamily: FONTS.text, // SF Pro Text for small text
+    fontFamily: FONTS.text,
     color: COLORS.gray,
   },
   commentDot: {
     fontSize: FONT_SIZES.xs,
-    fontFamily: FONTS.text, // SF Pro Text
+    fontFamily: FONTS.text,
     color: COLORS.gray,
     marginHorizontal: SPACING.xs,
   },
   commentLikes: {
     fontSize: FONT_SIZES.xs,
-    fontFamily: FONTS.text, // SF Pro Text
+    fontFamily: FONTS.text,
     color: COLORS.gray,
     fontWeight: '600',
   },
@@ -771,12 +665,6 @@ const styles = StyleSheet.create({
     marginLeft: SPACING.xs,
     minWidth: 32,
     minHeight: 32,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  commentHeartContainer: {
-    width: ICON_SIZES.HEART,
-    height: ICON_SIZES.HEART,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -794,18 +682,11 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.white,
     zIndex: 10,
   },
-  inputAvatar: {
-    width: ICON_SIZES.INPUT_AVATAR,
-    height: ICON_SIZES.INPUT_AVATAR,
-    borderRadius: ICON_SIZES.INPUT_AVATAR / 2,
-    backgroundColor: COLORS.lightGray,
-  },
   inputWrapper: {
     flex: 1,
     position: 'relative',
     backgroundColor: COLORS.background,
     borderRadius: 20,
-    marginLeft: SPACING.sm,
     paddingRight: 40,
     justifyContent: 'center',
   },
@@ -814,7 +695,7 @@ const styles = StyleSheet.create({
     paddingVertical: SPACING.sm,
     paddingHorizontal: SPACING.md,
     fontSize: FONT_SIZES.sm,
-    fontFamily: FONTS.text, // SF Pro Text for input text
+    fontFamily: FONTS.text,
     color: COLORS.secondary,
     textAlignVertical: 'center',
     minHeight: INPUT_CONFIG.MIN_HEIGHT,
@@ -829,6 +710,9 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.primary,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  sendButtonDisabled: {
+    opacity: 0.7,
   },
   sendButtonIconContainer: {
     width: ICON_SIZES.SEND,

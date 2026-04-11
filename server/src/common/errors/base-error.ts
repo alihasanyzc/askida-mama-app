@@ -94,3 +94,15 @@ export class ValidationError extends BaseError {
     });
   }
 }
+
+export class ServiceUnavailableError extends BaseError {
+  constructor(message = 'Service temporarily unavailable', details: unknown = null) {
+    super({
+      name: 'ServiceUnavailableError',
+      message,
+      statusCode: 503,
+      code: 'SERVICE_UNAVAILABLE',
+      details,
+    });
+  }
+}

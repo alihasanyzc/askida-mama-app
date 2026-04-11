@@ -50,6 +50,26 @@ export const createPost = asyncHandler(async (request: Request, response: Respon
   );
 });
 
+function requireUploadedFile(request: Request) {
+  if (!request.file) {
+    throw new BadRequestError('Image file is required');
+  }
+
+  return request.file;
+}
+
+export const uploadPostImage = asyncHandler(async (request: Request, response: Response) => {
+  const userId = requireUserId(request);
+  const data = await postsService.uploadImage(userId, requireUploadedFile(request));
+
+  response.status(200).json(
+    successResponse({
+      message: 'Post image uploaded successfully',
+      data,
+    }),
+  );
+});
+
 export const listPosts = asyncHandler(async (_request: Request, response: Response) => {
   const viewerId = _request.user?.id;
   const data = await postsService.list(viewerId);

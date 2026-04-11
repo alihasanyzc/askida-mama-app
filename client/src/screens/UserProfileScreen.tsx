@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
+  Alert,
   View,
   Text,
   StyleSheet,
@@ -12,6 +13,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { COLORS, SPACING, FONT_SIZES } from '../constants';
+import { followProfile, unfollowProfile } from '../services/profiles';
 import type { StackScreenProps } from '@react-navigation/stack';
 import type { DiscoverStackParamList } from '../types/navigation';
 import type { ProfileRecord, UserProfilePreview } from '../types/domain';
@@ -29,12 +31,12 @@ const isProfileRecord = (
 const UserProfileScreen = ({ route, navigation }: UserProfileScreenProps): React.JSX.Element => {
   const insets = useSafeAreaInsets();
   const [activeTab, setActiveTab] = useState<'blogs' | 'announcements'>('blogs');
-  const [isFollowing, setIsFollowing] = useState(false);
   
   // Route'dan gelen user bilgisi (zorunlu)
   const userParam = route.params?.user;
   const profileUser = isProfileRecord(userParam) ? userParam : undefined;
   const previewUser = userParam && !isProfileRecord(userParam) ? userParam : undefined;
+  const profileId = previewUser?.id || profileUser?.id;
 
   const previewStats =
     previewUser?.stats && 'blogs' in previewUser.stats
@@ -45,6 +47,16 @@ const UserProfileScreen = ({ route, navigation }: UserProfileScreenProps): React
     profileUser?.stats
       ? profileUser.stats
       : undefined;
+  const initialIsFollowing = Boolean(previewUser?.is_following ?? profileUser?.is_following);
+  const initialFollowerCount = previewStats?.followers ?? profileStats?.followers ?? 0;
+  const [isFollowing, setIsFollowing] = useState(initialIsFollowing);
+  const [followersCount, setFollowersCount] = useState(initialFollowerCount);
+  const [isFollowSubmitting, setIsFollowSubmitting] = useState(false);
+
+  useEffect(() => {
+    setIsFollowing(initialIsFollowing);
+    setFollowersCount(initialFollowerCount);
+  }, [initialFollowerCount, initialIsFollowing, profileId]);
   
   // Güvenli default değerler
   const user = {
@@ -54,13 +66,30 @@ const UserProfileScreen = ({ route, navigation }: UserProfileScreenProps): React
     bio: previewUser?.bio || profileUser?.bio || '',
     stats: {
       blogs: previewStats?.blogs || 0,
-      followers: previewStats?.followers || profileStats?.followers || 0,
+      followers: followersCount,
       following: previewStats?.following || profileStats?.following || 0,
     },
   };
 
-  const handleFollowToggle = () => {
-    setIsFollowing(!isFollowing);
+  const handleFollowToggle = async () => {
+    if (!profileId || isFollowSubmitting) {
+      return;
+    }
+
+    setIsFollowSubmitting(true);
+
+    try {
+      const updatedProfile = isFollowing
+        ? await unfollowProfile(profileId)
+        : await followProfile(profileId);
+
+      setIsFollowing(Boolean(updatedProfile.is_following));
+      setFollowersCount(updatedProfile.stats.followers);
+    } catch {
+      Alert.alert('Hata', 'Takip işlemi tamamlanamadı. Lütfen tekrar deneyin.');
+    } finally {
+      setIsFollowSubmitting(false);
+    }
   };
 
   // Mock blog resimleri
@@ -158,6 +187,7 @@ const UserProfileScreen = ({ route, navigation }: UserProfileScreenProps): React
             style={[styles.followButton, isFollowing && styles.followingButton]}
             onPress={handleFollowToggle}
             activeOpacity={0.8}
+            disabled={!profileId || isFollowSubmitting}
           >
             <Text style={styles.followButtonIcon}>{isFollowing ? '✓' : '👥'}</Text>
             <Text style={[styles.followButtonText, isFollowing && styles.followingButtonText]}>

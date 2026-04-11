@@ -9,6 +9,31 @@ export const formatDate = (date: string | number | Date | null | undefined): str
   });
 };
 
+export const formatRelativePostTime = (date: string | number | Date | null | undefined): string => {
+  if (!date) return 'Şimdi';
+
+  const timestamp = new Date(date).getTime();
+  if (Number.isNaN(timestamp)) return 'Şimdi';
+
+  const diffInSeconds = Math.max(0, Math.floor((Date.now() - timestamp) / 1000));
+
+  if (diffInSeconds < 60) return 'Şimdi';
+
+  const diffInMinutes = Math.floor(diffInSeconds / 60);
+  if (diffInMinutes < 60) return `${diffInMinutes} dk önce`;
+
+  const diffInHours = Math.floor(diffInMinutes / 60);
+  if (diffInHours < 24) return `${diffInHours} sa önce`;
+
+  const diffInDays = Math.floor(diffInHours / 24);
+  if (diffInDays < 7) return `${diffInDays} gün önce`;
+
+  const diffInWeeks = Math.floor(diffInDays / 7);
+  if (diffInWeeks < 4) return `${diffInWeeks} hf önce`;
+
+  return formatDate(date);
+};
+
 // Format currency
 export const formatCurrency = (amount: number | null | undefined): string => {
   if (!amount && amount !== 0) return '';

@@ -4,6 +4,7 @@ import {
   BadRequestError,
   ForbiddenError,
   NotFoundError,
+  ServiceUnavailableError,
 } from '../../common/errors/base-error.js';
 import { prisma } from '../../config/prisma.js';
 import type {
@@ -41,6 +42,35 @@ function mergeNullableString(
   currentValue: string | null,
 ) {
   return nextValue === undefined ? currentValue : (normalizeNullableString(nextValue) ?? null);
+}
+
+function normalizeAnnouncementError(error: unknown) {
+  if (
+    error instanceof Prisma.PrismaClientInitializationError ||
+    error instanceof Prisma.PrismaClientRustPanicError
+  ) {
+    return new ServiceUnavailableError('Database service is temporarily unavailable', {
+      provider: 'postgres',
+      message: error.message,
+    });
+  }
+
+  if (
+    error instanceof Prisma.PrismaClientKnownRequestError &&
+    ['P1001', 'P1002'].includes(error.code)
+  ) {
+    return new ServiceUnavailableError('Database service is temporarily unavailable', {
+      provider: 'postgres',
+      code: error.code,
+      message: error.message,
+    });
+  }
+
+  if (error instanceof Error) {
+    return new BadRequestError(error.message);
+  }
+
+  return new BadRequestError('Announcement query failed');
 }
 
 function mapAnnouncement(record: {
@@ -280,15 +310,19 @@ export const announcementsRepository = {
   },
 
   async findByUserId(userId: string): Promise<AnnouncementRecord[]> {
-    const data = await prisma.announcement.findMany({
-      where: {
-        user_id: userId,
-      },
-      include: announcementInclude,
-      orderBy: [{ is_priority: 'desc' }, { created_at: 'desc' }],
-    });
+    try {
+      const data = await prisma.announcement.findMany({
+        where: {
+          user_id: userId,
+        },
+        include: announcementInclude,
+        orderBy: [{ is_priority: 'desc' }, { created_at: 'desc' }],
+      });
 
-    return data.map(mapAnnouncement);
+      return data.map(mapAnnouncement);
+    } catch (error) {
+      throw normalizeAnnouncementError(error);
+    }
   },
 
   async create(userId: string, payload: CreateAnnouncementInput): Promise<AnnouncementRecord> {

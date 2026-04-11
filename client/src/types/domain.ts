@@ -32,6 +32,7 @@ export type ProfileRecord = {
   avatar?: string | null;
   cover_photo?: string | null;
   is_own_profile?: boolean;
+  is_following?: boolean;
   stats?: ProfileStats;
 };
 
@@ -178,6 +179,7 @@ export type UserProfilePreview = {
     following: number;
     rank?: number;
   };
+  is_following?: boolean;
   donations?: {
     food: { current: number; goal: number };
     medical: { current: number; goal: number };

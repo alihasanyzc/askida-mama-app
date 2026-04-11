@@ -1,5 +1,6 @@
-import React, { useState, useRef, useCallback, useMemo, memo } from 'react';
+import React, { useState, useRef, useCallback, useEffect, useMemo, memo } from 'react';
 import {
+  Alert,
   View,
   Text,
   Image,
@@ -9,17 +10,21 @@ import {
   Animated,
   Platform,
 } from 'react-native';
-import { FontAwesome } from '@expo/vector-icons';
+import type { StyleProp, ViewStyle } from 'react-native';
+import { Entypo, FontAwesome } from '@expo/vector-icons';
 import { COLORS, SPACING, FONT_SIZES, FONTS, DISPLAY_FONT_THRESHOLD } from '../../constants';
 import CommentsModal from './CommentsModal';
 import LikesModal from './LikesModal';
 
 type BlogAuthor = {
+  id?: string;
   name: string;
+  username?: string;
   avatar: string;
 };
 
 type BlogCardProps = {
+  postId?: string;
   author: BlogAuthor;
   date: string;
   image: string;
@@ -27,11 +32,16 @@ type BlogCardProps = {
   description: string;
   likes?: number;
   comments?: number;
+  isInitiallyLiked?: boolean;
+  isInitiallyBookmarked?: boolean;
   category?: string;
   onPress?: () => void;
-  onLike?: (isLiked: boolean) => void;
+  onLike?: (isLiked: boolean) => Promise<unknown> | unknown;
   onBookmark?: (isBookmarked: boolean) => void;
   onAuthorPress?: (author: BlogAuthor) => void;
+  containerStyle?: StyleProp<ViewStyle>;
+  canDelete?: boolean;
+  onDelete?: () => Promise<void> | void;
 };
 
 type FloatingHeart = {
@@ -62,7 +72,6 @@ const ANIMATION_CONFIG = {
 const ICON_SIZES = {
   HEART: 24,
   AVATAR: 40,
-  LIKED_BY_AVATAR: 20,
   HEART_ANIMATION: 50,
 };
 
@@ -75,12 +84,6 @@ const DEFAULT_PROPS = {
   comments: 20,
   likes: 0,
 };
-
-const MOCK_LIKED_BY_AVATARS = [
-  'https://i.pravatar.cc/150?img=2',
-  'https://i.pravatar.cc/150?img=3',
-  'https://i.pravatar.cc/150?img=4',
-];
 
 /**
  * BlogCard Component
@@ -103,6 +106,7 @@ const MOCK_LIKED_BY_AVATARS = [
  * @param {Function} props.onAuthorPress - Callback when author is pressed
  */
 const BlogCard = ({
+  postId,
   author,
   date,
   image,
@@ -110,23 +114,46 @@ const BlogCard = ({
   description,
   likes = DEFAULT_PROPS.likes,
   comments = DEFAULT_PROPS.comments,
+  isInitiallyLiked = false,
+  isInitiallyBookmarked = false,
   category,
   onPress,
   onLike,
   onBookmark,
   onAuthorPress,
+  containerStyle,
+  canDelete = false,
+  onDelete,
 }: BlogCardProps): React.JSX.Element => {
   // State management
-  const [isLiked, setIsLiked] = useState(false);
-  const [isBookmarked, setIsBookmarked] = useState(false);
+  const [isLiked, setIsLiked] = useState(isInitiallyLiked);
+  const [isBookmarked, setIsBookmarked] = useState(isInitiallyBookmarked);
   const [likeCount, setLikeCount] = useState(likes);
+  const [commentCount, setCommentCount] = useState(comments);
   const [likeAnimations, setLikeAnimations] = useState<FloatingHeart[]>([]);
   const [commentsModalVisible, setCommentsModalVisible] = useState(false);
   const [likesModalVisible, setLikesModalVisible] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // Refs
   const lastTap = useRef<number | null>(null);
   const heartScale = useRef(new Animated.Value(ANIMATION_CONFIG.HEART_SCALE_NORMAL)).current;
+
+  useEffect(() => {
+    setLikeCount(likes);
+  }, [likes]);
+
+  useEffect(() => {
+    setCommentCount(comments);
+  }, [comments]);
+
+  useEffect(() => {
+    setIsLiked(isInitiallyLiked);
+  }, [isInitiallyLiked]);
+
+  useEffect(() => {
+    setIsBookmarked(isInitiallyBookmarked);
+  }, [isInitiallyBookmarked]);
 
   /**
    * Triggers the Instagram-style heart scale animation
@@ -154,6 +181,7 @@ const BlogCard = ({
   const handleLike = useCallback((e?: { stopPropagation?: () => void }) => {
     e?.stopPropagation();
     const newLikedState = !isLiked;
+    const previousLikedState = isLiked;
     
     setIsLiked(newLikedState);
     setLikeCount((prevCount) => (newLikedState ? prevCount + 1 : prevCount - 1));
@@ -162,7 +190,10 @@ const BlogCard = ({
       triggerHeartAnimation();
     }
     
-    onLike?.(newLikedState);
+    void Promise.resolve(onLike?.(newLikedState)).catch(() => {
+      setIsLiked(previousLikedState);
+      setLikeCount((prevCount) => (newLikedState ? prevCount - 1 : prevCount + 1));
+    });
   }, [isLiked, triggerHeartAnimation, onLike]);
 
   /**
@@ -242,8 +273,11 @@ const BlogCard = ({
   const handleBookmark = useCallback((e?: { stopPropagation?: () => void }) => {
     e?.stopPropagation();
     const newBookmarkedState = !isBookmarked;
+    const previousBookmarkedState = isBookmarked;
     setIsBookmarked(newBookmarkedState);
-    onBookmark?.(newBookmarkedState);
+    void Promise.resolve(onBookmark?.(newBookmarkedState)).catch(() => {
+      setIsBookmarked(previousBookmarkedState);
+    });
   }, [isBookmarked, onBookmark]);
 
   /**
@@ -284,6 +318,34 @@ const BlogCard = ({
     onAuthorPress?.(author);
   }, [author, onAuthorPress]);
 
+  const handleDeletePress = useCallback((e?: { stopPropagation?: () => void }) => {
+    e?.stopPropagation();
+
+    if (!canDelete || isDeleting) {
+      return;
+    }
+
+    Alert.alert('Gönderi Seçenekleri', 'Bu gönderiyi silmek istiyor musunuz?', [
+      {
+        text: 'Vazgeç',
+        style: 'cancel',
+      },
+      {
+        text: 'Gönderiyi Sil',
+        style: 'destructive',
+        onPress: () => {
+          setIsDeleting(true);
+
+          void Promise.resolve(onDelete?.()).catch(() => {
+            Alert.alert('Hata', 'Gönderi silinirken bir hata oluştu.');
+          }).finally(() => {
+            setIsDeleting(false);
+          });
+        },
+      },
+    ]);
+  }, [canDelete, isDeleting, onDelete]);
+
   // Memoized values
   const heartIconName = useMemo(() => (isLiked ? 'heart' : 'heart-o'), [isLiked]);
   const heartIconColor = useMemo(
@@ -291,31 +353,56 @@ const BlogCard = ({
     [isLiked]
   );
   const bookmarkIconName = useMemo(() => (isBookmarked ? 'bookmark' : 'bookmark-o'), [isBookmarked]);
-  const otherLikesCount = useMemo(() => Math.max(0, likeCount - 1), [likeCount]);
+  const commentsCtaText = useMemo(() => {
+    if (commentCount <= 0) {
+      return '';
+    }
+
+    if (commentCount === 1) {
+      return '1 yorumu gör';
+    }
+
+    return `${commentCount} yorumun tümünü gör`;
+  }, [commentCount]);
 
   return (
-    <View style={styles.card} testID="blog-card">
+    <View style={[styles.card, containerStyle]} testID="blog-card">
       {/* Author Info */}
-      <TouchableOpacity
-        style={styles.header}
-        onPress={handleAuthorPress}
-        activeOpacity={0.7}
-        accessibilityLabel={`Author: ${author?.name || 'Unknown'}`}
-        accessibilityRole="button"
-      >
-        <Image
-          source={{ uri: author?.avatar }}
-          style={styles.avatar}
-          resizeMode="cover"
-          accessibilityLabel={`${author?.name || 'Unknown'} avatar`}
-        />
-        <View style={styles.authorInfo}>
-          <Text style={styles.authorName} numberOfLines={1}>
-            {author?.name || 'Unknown'}
-          </Text>
-          <Text style={styles.date}>{date}</Text>
-        </View>
-      </TouchableOpacity>
+      <View style={styles.header}>
+        <TouchableOpacity
+          style={styles.authorButton}
+          onPress={handleAuthorPress}
+          activeOpacity={0.7}
+          accessibilityLabel={`Author: ${author?.name || 'Unknown'}`}
+          accessibilityRole="button"
+        >
+          <Image
+            source={{ uri: author?.avatar }}
+            style={styles.avatar}
+            resizeMode="cover"
+            accessibilityLabel={`${author?.name || 'Unknown'} avatar`}
+          />
+          <View style={styles.authorInfo}>
+            <Text style={styles.authorName} numberOfLines={1}>
+              {author?.name || 'Unknown'}
+            </Text>
+            <Text style={styles.date}>{date}</Text>
+          </View>
+        </TouchableOpacity>
+
+        {canDelete ? (
+          <TouchableOpacity
+            style={styles.optionsButton}
+            onPress={handleDeletePress}
+            activeOpacity={0.7}
+            accessibilityLabel="Gönderi seçenekleri"
+            accessibilityRole="button"
+            disabled={isDeleting}
+          >
+            <Entypo name="dots-three-vertical" size={18} color={COLORS.secondary} />
+          </TouchableOpacity>
+        ) : null}
+      </View>
 
       {/* Title/Caption */}
       {description && (
@@ -367,44 +454,66 @@ const BlogCard = ({
         {/* Action buttons */}
         <View style={styles.actionsRow}>
           <View style={styles.leftActions}>
-            <TouchableOpacity
-              style={styles.actionButton}
-              onPress={handleLike}
-              activeOpacity={0.7}
-              accessibilityLabel={isLiked ? 'Unlike' : 'Like'}
-              accessibilityRole="button"
-              accessibilityState={{ selected: isLiked }}
-            >
-              <Animated.View
-                style={[
-                  styles.heartIconContainer,
-                  {
-                    transform: [{ scale: heartScale }],
-                  },
-                ]}
-                testID="heart-icon-container"
+            <View style={styles.actionGroup}>
+              <TouchableOpacity
+                style={styles.actionButton}
+                onPress={handleLike}
+                activeOpacity={0.7}
+                accessibilityLabel={isLiked ? 'Unlike' : 'Like'}
+                accessibilityRole="button"
+                accessibilityState={{ selected: isLiked }}
+              >
+                <Animated.View
+                  style={[
+                    styles.heartIconContainer,
+                    {
+                      transform: [{ scale: heartScale }],
+                    },
+                  ]}
+                  testID="heart-icon-container"
+                >
+                  <FontAwesome
+                    name={heartIconName}
+                    size={ICON_SIZES.HEART}
+                    color={heartIconColor}
+                  />
+                </Animated.View>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.actionCountButton}
+                onPress={handleOpenLikes}
+                activeOpacity={0.7}
+                accessibilityLabel={`${likeCount} beğeni`}
+                accessibilityRole="button"
+              >
+                <Text style={styles.actionCountText}>{likeCount}</Text>
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.actionGroup}>
+              <TouchableOpacity
+                style={styles.actionButton}
+                onPress={handleOpenComments}
+                activeOpacity={0.7}
+                accessibilityLabel={`${commentCount} comments`}
+                accessibilityRole="button"
               >
                 <FontAwesome
-                  name={heartIconName}
+                  name="comment-o"
                   size={ICON_SIZES.HEART}
-                  color={heartIconColor}
+                  color={COLORS.secondary}
                 />
-              </Animated.View>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.actionButton}
-              onPress={handleOpenComments}
-              activeOpacity={0.7}
-              accessibilityLabel={`${comments} comments`}
-              accessibilityRole="button"
-            >
-              <FontAwesome
-                name="comment-o"
-                size={ICON_SIZES.HEART}
-                color={COLORS.secondary}
-              />
-            </TouchableOpacity>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.actionCountButton}
+                onPress={handleOpenComments}
+                activeOpacity={0.7}
+                accessibilityLabel={`${commentCount} yorum`}
+                accessibilityRole="button"
+              >
+                <Text style={styles.actionCountText}>{commentCount}</Text>
+              </TouchableOpacity>
+            </View>
           </View>
 
           <TouchableOpacity
@@ -423,51 +532,15 @@ const BlogCard = ({
           </TouchableOpacity>
         </View>
 
-        {/* Liked by section */}
-        {likeCount > 0 && (
-          <TouchableOpacity
-            style={styles.likedBySection}
-            onPress={handleOpenLikes}
-            activeOpacity={0.7}
-            accessibilityLabel={`${likeCount} likes`}
-            accessibilityRole="button"
-          >
-            <View style={styles.avatarGroup}>
-              {MOCK_LIKED_BY_AVATARS.slice(0, 3).map((avatar, index) => (
-                <Image
-                  key={`${avatar}-${index}`}
-                  source={{ uri: avatar }}
-                  style={[
-                    styles.likedByAvatar,
-                    { marginLeft: index > 0 ? -SPACING.sm : 0 },
-                  ]}
-                  resizeMode="cover"
-                />
-              ))}
-            </View>
-            <Text style={styles.likedByText} numberOfLines={1}>
-              Liked by <Text style={styles.likedByName}>rebecca_jones</Text>
-              {otherLikesCount > 0 && (
-                <>
-                  {' '}and <Text style={styles.likedByName}>{otherLikesCount} others</Text>
-                </>
-              )}
-            </Text>
-          </TouchableOpacity>
-        )}
-
         {/* Comments preview */}
-        {comments > 0 && (
+        {commentCount > 0 && (
           <TouchableOpacity
             style={styles.commentsSection}
             onPress={handleOpenComments}
             activeOpacity={0.7}
             accessibilityRole="button"
           >
-            <Text style={styles.viewComments}>View all {comments} comments</Text>
-            <Text style={styles.commentPreview} numberOfLines={1}>
-              <Text style={styles.commentUsername}>drkhensick_hh</Text> Very nice
-            </Text>
+            <Text style={styles.viewComments}>{commentsCtaText}</Text>
           </TouchableOpacity>
         )}
       </View>
@@ -476,13 +549,18 @@ const BlogCard = ({
       <CommentsModal
         visible={commentsModalVisible}
         onClose={handleCloseComments}
+        postId={postId}
         postAuthor={author}
+        postAuthorId={author?.id}
         category={category}
         postTitle={title}
+        onCommentCountChange={(delta) => {
+          setCommentCount((currentCount) => Math.max(0, currentCount + delta));
+        }}
       />
 
       {/* Likes Modal */}
-      <LikesModal visible={likesModalVisible} onClose={handleCloseLikes} />
+      <LikesModal visible={likesModalVisible} onClose={handleCloseLikes} postId={postId} />
     </View>
   );
 };
@@ -509,8 +587,15 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
     paddingHorizontal: SPACING.md,
     paddingVertical: SPACING.sm,
+  },
+  authorButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    paddingRight: SPACING.sm,
   },
   avatar: {
     width: ICON_SIZES.AVATAR,
@@ -521,6 +606,12 @@ const styles = StyleSheet.create({
   authorInfo: {
     marginLeft: SPACING.sm,
     flex: 1,
+  },
+  optionsButton: {
+    width: 32,
+    height: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   authorName: {
     fontSize: FONT_SIZES.md,
@@ -569,34 +660,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: SPACING.md,
     paddingVertical: SPACING.sm,
   },
-  likedBySection: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: SPACING.sm,
-  },
-  avatarGroup: {
-    flexDirection: 'row',
-    marginRight: SPACING.sm,
-  },
-  likedByAvatar: {
-    width: ICON_SIZES.LIKED_BY_AVATAR,
-    height: ICON_SIZES.LIKED_BY_AVATAR,
-    borderRadius: ICON_SIZES.LIKED_BY_AVATAR / 2,
-    borderWidth: 1,
-    borderColor: COLORS.white,
-  },
-  likedByText: {
-    fontSize: FONT_SIZES.xs,
-    ...(Platform.OS === 'android' && { fontFamily: FONTS.text }), // Only set fontFamily on Android
-    color: COLORS.secondary,
-    flex: 1,
-  },
-  likedByName: {
-    fontSize: FONT_SIZES.xs, // Explicit fontSize for nested Text
-    ...(Platform.OS === 'android' && { fontFamily: FONTS.text }), // Only set fontFamily on Android
-    fontWeight: '600',
-    color: COLORS.secondary, // Inherit color
-  },
   actionsRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -605,7 +668,12 @@ const styles = StyleSheet.create({
   },
   leftActions: {
     flexDirection: 'row',
-    gap: SPACING.md,
+    alignItems: 'center',
+    gap: SPACING.lg,
+  },
+  actionGroup: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   actionButton: {
     padding: SPACING.xs,
@@ -613,6 +681,16 @@ const styles = StyleSheet.create({
     minHeight: ICON_SIZES.HEART + SPACING.sm,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  actionCountButton: {
+    paddingVertical: SPACING.xs,
+    paddingRight: SPACING.xs,
+  },
+  actionCountText: {
+    fontSize: FONT_SIZES.md,
+    ...(Platform.OS === 'android' && { fontFamily: FONTS.text }),
+    fontWeight: '600',
+    color: COLORS.secondary,
   },
   heartIconContainer: {
     transform: [{ scale: 1 }],

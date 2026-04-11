@@ -4,10 +4,22 @@ import type {
   UpdatePostInput,
 } from './posts.type.js';
 import { postsRepository } from './posts.repository.js';
+import { postsStorage } from './posts.storage.js';
 
 export const postsService = {
   async create(userId: string, payload: CreatePostInput) {
     return postsRepository.create(userId, payload);
+  },
+
+  async uploadImage(userId: string, file: Express.Multer.File) {
+    const imageUrl = await postsStorage.uploadPostImage({
+      userId,
+      file,
+    });
+
+    return {
+      image_url: imageUrl,
+    };
   },
 
   async list(viewerId?: string) {

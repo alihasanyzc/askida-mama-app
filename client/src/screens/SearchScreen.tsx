@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import {
   View,
   Text,
@@ -8,141 +8,114 @@ import {
   TouchableOpacity,
   Image,
   StatusBar,
+  ActivityIndicator,
 } from 'react-native';
+import { AxiosError } from 'axios';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Entypo } from '@expo/vector-icons';
 import { COLORS, SPACING, FONT_SIZES } from '../constants';
+import { searchProfiles, type ProfileSearchRecord } from '../services/profiles';
 import type { StackScreenProps } from '@react-navigation/stack';
 import type { DiscoverStackParamList } from '../types/navigation';
 import type { UserProfilePreview } from '../types/domain';
 
 type SearchScreenProps = StackScreenProps<DiscoverStackParamList, 'Search'>;
 
-type SearchUser = UserProfilePreview & {
-  id: string;
-  followers: number;
-};
+const DEFAULT_AVATAR_URL =
+  'https://abs.twimg.com/sticky/default_profile_images/default_profile_400x400.png';
 
 const SearchScreen = ({ navigation }: SearchScreenProps): React.JSX.Element => {
   const insets = useSafeAreaInsets();
   const [searchQuery, setSearchQuery] = useState('');
+  const [users, setUsers] = useState<ProfileSearchRecord[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
+  const [searchError, setSearchError] = useState<string | null>(null);
+  const normalizedQuery = searchQuery.trim();
 
-  // Mock kullanıcılar
-  const allUsers: SearchUser[] = [
-    {
-      id: '1',
-      name: 'Dr. Zeynep Kaya',
-      username: 'dr_zeynep_kaya',
-      avatar: 'https://i.pravatar.cc/150?img=1',
-      bio: 'Veteriner hekim 🩺 Sokak hayvanları için gönüllü',
-      followers: 1250,
-    },
-    {
-      id: '2',
-      name: 'Mehmet Arslan',
-      username: 'mehmet_arslan',
-      avatar: 'https://i.pravatar.cc/150?img=33',
-      bio: 'Hayvan sever 🐾 Kedi mama desteği',
-      followers: 892,
-    },
-    {
-      id: '3',
-      name: 'Ayşe Demir',
-      username: 'ayse_demir',
-      avatar: 'https://i.pravatar.cc/150?img=5',
-      bio: 'Sokak kedileri gönüllüsü 🐱',
-      followers: 2340,
-    },
-    {
-      id: '4',
-      name: 'Can Yılmaz',
-      username: 'can_yilmaz',
-      avatar: 'https://i.pravatar.cc/150?img=12',
-      bio: 'Veteriner 🩺 Ücretsiz muayene',
-      followers: 4567,
-    },
-    {
-      id: '5',
-      name: 'Elif Kara',
-      username: 'elif_kara',
-      avatar: 'https://i.pravatar.cc/150?img=9',
-      bio: 'Hayvan barınağı kurucusu 🏠',
-      followers: 3120,
-    },
-    {
-      id: '6',
-      name: 'Murat Öztürk',
-      username: 'murat_ozturk',
-      avatar: 'https://i.pravatar.cc/150?img=15',
-      bio: 'Sokak hayvanları derneği başkanı',
-      followers: 5890,
-    },
-    {
-      id: '7',
-      name: 'Selin Yıldız',
-      username: 'selin_yildiz',
-      avatar: 'https://i.pravatar.cc/150?img=20',
-      bio: 'Hayvan hakları aktivisti ✊',
-      followers: 7654,
-    },
-    {
-      id: '8',
-      name: 'Ahmet Kaya',
-      username: 'ahmet_kaya',
-      avatar: 'https://i.pravatar.cc/150?img=13',
-      bio: 'Veteriner teknisyeni 🐕',
-      followers: 1876,
-    },
-  ];
+  useEffect(() => {
+    let isActive = true;
 
-  // Filtreleme
-  const filteredUsers = searchQuery.trim() === '' 
-    ? allUsers 
-    : allUsers.filter(user => 
-        user.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        user.username.toLowerCase().includes(searchQuery.toLowerCase())
-      );
+    if (!normalizedQuery) {
+      setUsers([]);
+      setIsSearching(false);
+      setSearchError(null);
+      return () => {
+        isActive = false;
+      };
+    }
 
-  const handleUserPress = (user: SearchUser) => {
+    setIsSearching(true);
+    setSearchError(null);
+
+    const timeoutId = setTimeout(() => {
+      searchProfiles(normalizedQuery)
+        .then((results) => {
+          if (!isActive) return;
+          setUsers(results);
+        })
+        .catch((error) => {
+          if (!isActive) return;
+
+          setUsers([]);
+
+          if (error instanceof AxiosError && error.response?.status === 503) {
+            setSearchError('Arama servisine şu anda ulaşılamıyor.');
+            return;
+          }
+
+          setSearchError('Arama yapılırken bir hata oluştu.');
+        })
+        .finally(() => {
+          if (isActive) {
+            setIsSearching(false);
+          }
+        });
+    }, 250);
+
+    return () => {
+      isActive = false;
+      clearTimeout(timeoutId);
+    };
+  }, [normalizedQuery]);
+
+  const handleUserPress = useCallback((user: ProfileSearchRecord) => {
+    const profilePreview: UserProfilePreview = {
+      id: user.id,
+      name: user.name || user.full_name,
+      username: user.username,
+      avatar: user.avatar ?? DEFAULT_AVATAR_URL,
+      bio: user.bio ?? undefined,
+      stats: {
+        blogs: user.stats.posts,
+        followers: user.stats.followers,
+        following: user.stats.following,
+      },
+      is_following: user.is_following,
+    };
+
     navigation.navigate('UserProfile', {
-      user: {
-        id: user.id,
-        name: user.name,
-        username: user.username,
-        avatar: user.avatar,
-        bio: user.bio,
-        stats: {
-          blogs: Math.floor(Math.random() * 50) + 5,
-          followers: user.followers,
-          following: Math.floor(Math.random() * 1000) + 50,
-          rank: Math.floor(Math.random() * 100) + 1,
-        },
-        donations: {
-          food: { current: Math.floor(Math.random() * 1500) + 500, goal: 2000 },
-          medical: { current: Math.floor(Math.random() * 3000) + 1000, goal: 5000 },
-        },
-      }
+      user: profilePreview,
     });
-  };
+  }, [navigation]);
 
   const clearSearch = () => {
     setSearchQuery('');
   };
 
-  const renderUser = useCallback(({ item }: { item: SearchUser }) => (
+  const renderUser = useCallback(({ item }: { item: ProfileSearchRecord }) => (
     <TouchableOpacity 
       style={styles.userItem}
       onPress={() => handleUserPress(item)}
       activeOpacity={0.7}
     >
-      <Image source={{ uri: item.avatar }} style={styles.avatar} />
+      <Image source={{ uri: item.avatar ?? DEFAULT_AVATAR_URL }} style={styles.avatar} />
       <View style={styles.userInfo}>
-        <Text style={styles.name}>{item.name}</Text>
+        <Text style={styles.name}>{item.name || item.full_name}</Text>
         <Text style={styles.username}>@{item.username}</Text>
-        {item.bio && <Text style={styles.bio} numberOfLines={1}>{item.bio}</Text>}
+        {item.bio ? <Text style={styles.bio} numberOfLines={1}>{item.bio}</Text> : null}
       </View>
     </TouchableOpacity>
-  ), [navigation]);
+  ), [handleUserPress]);
 
   return (
     <View style={styles.container}>
@@ -185,12 +158,20 @@ const SearchScreen = ({ navigation }: SearchScreenProps): React.JSX.Element => {
       </View>
 
       {/* Results */}
-      {searchQuery.trim() === '' ? (
+      {normalizedQuery === '' ? (
         // Boş durum - hiçbir şey gösterme
         <View style={styles.container} />
-      ) : filteredUsers.length === 0 ? (
+      ) : isSearching ? (
+        <View style={styles.loadingState}>
+          <ActivityIndicator color={COLORS.primary} />
+        </View>
+      ) : searchError ? (
         <View style={styles.emptyState}>
-          <Text style={styles.emptyIcon}>😔</Text>
+          <Text style={styles.emptyTitle}>Arama Yapılamadı</Text>
+          <Text style={styles.emptyText}>{searchError}</Text>
+        </View>
+      ) : users.length === 0 ? (
+        <View style={styles.emptyState}>
           <Text style={styles.emptyTitle}>Kullanıcı Bulunamadı</Text>
           <Text style={styles.emptyText}>
             "{searchQuery}" için sonuç bulunamadı
@@ -198,7 +179,7 @@ const SearchScreen = ({ navigation }: SearchScreenProps): React.JSX.Element => {
         </View>
       ) : (
         <FlatList
-          data={filteredUsers}
+          data={users}
           renderItem={renderUser}
           keyExtractor={(item) => item.id}
           contentContainerStyle={styles.listContent}
@@ -301,9 +282,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: SPACING.xl,
   },
-  emptyIcon: {
-    fontSize: 64,
-    marginBottom: SPACING.md,
+  loadingState: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   emptyTitle: {
     fontSize: FONT_SIZES.xl,

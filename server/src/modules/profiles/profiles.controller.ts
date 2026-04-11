@@ -34,6 +34,17 @@ function requireUsername(request: Request) {
   return username;
 }
 
+function getSearchQuery(request: Request) {
+  const { q } = request.query;
+
+  if (Array.isArray(q)) {
+    const [firstQuery] = q;
+    return typeof firstQuery === 'string' ? firstQuery.trim() : '';
+  }
+
+  return typeof q === 'string' ? q.trim() : '';
+}
+
 export const getOwnProfile = asyncHandler(async (request: Request, response: Response) => {
   const userId = requireUserId(request);
   const data = await profilesService.getOwnProfile(userId);
@@ -41,6 +52,17 @@ export const getOwnProfile = asyncHandler(async (request: Request, response: Res
   response.status(200).json(
     successResponse({
       message: 'Profile fetched successfully',
+      data,
+    }),
+  );
+});
+
+export const searchProfiles = asyncHandler(async (request: Request, response: Response) => {
+  const data = await profilesService.searchProfiles(getSearchQuery(request), request.user?.id);
+
+  response.status(200).json(
+    successResponse({
+      message: 'Profiles searched successfully',
       data,
     }),
   );
