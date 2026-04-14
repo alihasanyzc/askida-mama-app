@@ -46,13 +46,11 @@ const ProductDetailScreen = ({ route, navigation }: ProductDetailScreenProps): R
   const totalPrice = product.price * quantity;
 
   const handleDonate = () => {
-    // Ödeme ekranına yönlendirme
     navigation.navigate('Payment', { amount: totalPrice });
   };
 
   return (
     <View style={styles.container}>
-      {/* Header */}
       <View style={[styles.header, { paddingTop: insets.top + SPACING.xs }]}>
         <TouchableOpacity
           style={styles.backButton}
@@ -64,12 +62,11 @@ const ProductDetailScreen = ({ route, navigation }: ProductDetailScreenProps): R
         <View style={styles.placeholder} />
       </View>
 
-      <ScrollView 
+      <ScrollView
         style={styles.scrollView}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
       >
-        {/* Product Image */}
         <View style={styles.imageContainer}>
           <Image
             source={{ uri: product.image ?? product.image_url ?? undefined }}
@@ -78,14 +75,12 @@ const ProductDetailScreen = ({ route, navigation }: ProductDetailScreenProps): R
           />
         </View>
 
-        {/* Product Info */}
         <View style={styles.contentContainer}>
           <Text style={styles.productName}>{product.name}</Text>
           <Text style={styles.productSubtitle}>
             {product.category === 'Köpek' ? 'Premium Dog' : 'Premium Cat'} • {product.weight}
           </Text>
 
-          {/* Miktar Seçim */}
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Miktar Seçin</Text>
             <View style={styles.quantityContainer}>
@@ -113,19 +108,17 @@ const ProductDetailScreen = ({ route, navigation }: ProductDetailScreenProps): R
             </View>
           </View>
 
-          {/* Ürün Açıklaması */}
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Ürün Açıklaması</Text>
             <Text style={styles.descriptionText}>{product.description}</Text>
           </View>
 
-          {/* İçerik Bilgisi */}
           <View style={styles.section}>
             <View style={styles.infoHeader}>
               <Text style={styles.infoIcon}>📦</Text>
               <Text style={styles.sectionTitle}>İçerik Bilgisi</Text>
             </View>
-            
+
             <View style={styles.nutritionGrid}>
               <View style={styles.nutritionItem}>
                 <Text style={styles.nutritionLabel}>Protein</Text>
@@ -153,7 +146,6 @@ const ProductDetailScreen = ({ route, navigation }: ProductDetailScreenProps): R
             </View>
           </View>
 
-          {/* Bağışınızın Etkisi */}
           <View style={[styles.section, styles.impactSection]}>
             <View style={styles.impactIcon}>
               <Text style={styles.impactIconText}>❤️</Text>
@@ -166,7 +158,6 @@ const ProductDetailScreen = ({ route, navigation }: ProductDetailScreenProps): R
             </View>
           </View>
 
-          {/* Bottom Button - Inside ScrollView */}
           <TouchableOpacity
             style={styles.donateButton}
             onPress={handleDonate}

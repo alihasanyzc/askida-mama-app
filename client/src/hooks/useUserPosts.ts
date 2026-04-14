@@ -59,6 +59,10 @@ export const loadUserPosts = async (): Promise<UserPost[]> => {
   return cachedPosts;
 };
 
+export const clearCachedUserPosts = () => {
+  updateCachedPosts([], { hasLoadedPosts: false });
+};
+
 export const createUserPost = async ({ image, content = '' }: CreateUserPostInput): Promise<UserPost> => {
   const imageUrl = isLocalImageUri(image) ? await uploadPostImage(image) : image;
   const createdPost = await createPost({

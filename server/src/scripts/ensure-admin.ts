@@ -2,45 +2,90 @@ import { env } from '../config/env.js';
 import { prisma } from '../config/prisma.js';
 import { supabase, supabaseAdmin } from '../config/supabase.js';
 
+async function findAuthUserByEmail(email: string) {
+  let page = 1;
+  const normalizedEmail = email.trim().toLowerCase();
+
+  while (true) {
+    const { data, error } = await supabaseAdmin.auth.admin.listUsers({
+      page,
+      perPage: 200,
+    });
+
+    if (error) {
+      throw new Error(error.message);
+    }
+
+    const users = data.users as Array<{ id: string; email?: string | null }>;
+    const matchedUser = users.find((user) => user.email?.trim().toLowerCase() === normalizedEmail);
+
+    if (matchedUser) {
+      return matchedUser;
+    }
+
+    if (data.users.length < 200) {
+      return null;
+    }
+
+    page += 1;
+  }
+}
+
 async function ensureAdmin() {
-  const existingProfile = await prisma.profile.findUnique({
+  let authUser = await findAuthUserByEmail(env.ADMIN_EMAIL);
+
+  if (!authUser) {
+    const { data, error } = await supabaseAdmin.auth.admin.createUser({
+      email: env.ADMIN_EMAIL,
+      password: env.ADMIN_PASSWORD,
+      email_confirm: true,
+      user_metadata: {
+        full_name: env.ADMIN_FULL_NAME,
+        username: env.ADMIN_USERNAME,
+      },
+    });
+
+    if (error || !data.user) {
+      throw new Error(error?.message ?? 'Failed to create admin auth user');
+    }
+
+    authUser = data.user;
+  } else {
+    const { error } = await supabaseAdmin.auth.admin.updateUserById(authUser.id, {
+      password: env.ADMIN_PASSWORD,
+      email_confirm: true,
+      user_metadata: {
+        full_name: env.ADMIN_FULL_NAME,
+        username: env.ADMIN_USERNAME,
+      },
+    });
+
+    if (error) {
+      throw new Error(error.message);
+    }
+  }
+
+  const conflictingProfile = await prisma.profile.findUnique({
     where: {
       username: env.ADMIN_USERNAME,
     },
   });
 
-  if (existingProfile) {
-    await prisma.profile.update({
-      where: {
-        id: existingProfile.id,
-      },
-      data: {
-        role: 'admin',
-      },
-    });
-
-    console.log(`Admin already exists: ${env.ADMIN_EMAIL}`);
-    console.log(`Admin password: ${env.ADMIN_PASSWORD}`);
-    return;
+  if (conflictingProfile && conflictingProfile.id !== authUser.id) {
+    throw new Error('Reserved admin username is already used by another profile');
   }
 
-  const { data, error } = await supabaseAdmin.auth.admin.createUser({
-    email: env.ADMIN_EMAIL,
-    password: env.ADMIN_PASSWORD,
-    email_confirm: true,
-    user_metadata: {
+  await prisma.profile.upsert({
+    where: {
+      id: authUser.id,
+    },
+    update: {
       full_name: env.ADMIN_FULL_NAME,
       username: env.ADMIN_USERNAME,
+      role: 'admin',
     },
-  });
-
-  if (error || !data.user) {
-    throw new Error(error?.message ?? 'Failed to create admin auth user');
-  }
-
-  await prisma.profile.create({
-    data: {
-      id: data.user.id,
+    create: {
+      id: authUser.id,
       full_name: env.ADMIN_FULL_NAME,
       username: env.ADMIN_USERNAME,
       role: 'admin',

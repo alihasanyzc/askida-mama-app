@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import {
+  PanResponder,
   View,
   Text,
   StyleSheet,
@@ -32,10 +33,19 @@ type DonationProduct = ProductRecord & {
 
 const DonationScreen = ({ route, navigation }: DonationScreenProps): React.JSX.Element => {
   const insets = useSafeAreaInsets();
-  const { type } = route?.params || { type: 'food' }; // 'food' or 'medical'
-  const [selectedTab, setSelectedTab] = useState<'cat' | 'dog'>('cat'); // 'dog' or 'cat'
+  const { type } = route?.params || { type: 'food' };
+  const [selectedTab, setSelectedTab] = useState<'cat' | 'dog'>('cat');
+  const swipeResponder = PanResponder.create({
+    onMoveShouldSetPanResponder: (_event, gestureState) =>
+      Math.abs(gestureState.dx) > 24 &&
+      Math.abs(gestureState.dx) > Math.abs(gestureState.dy) * 1.4,
+    onPanResponderRelease: (_event, gestureState) => {
+      if (Math.abs(gestureState.dx) > 90 && Math.abs(gestureState.vx) > 0.2) {
+        navigation.goBack();
+      }
+    },
+  });
 
-  // Mock data - Köpek mamaları
   const dogFoods: DonationProduct[] = [
     {
       id: '1',
@@ -79,7 +89,6 @@ const DonationScreen = ({ route, navigation }: DonationScreenProps): React.JSX.E
     },
   ];
 
-  // Mock data - Kedi mamaları
   const catFoods: DonationProduct[] = [
     {
       id: '5',
@@ -134,32 +143,26 @@ const DonationScreen = ({ route, navigation }: DonationScreenProps): React.JSX.E
   };
 
   const renderFoodCard = (item: DonationProduct) => (
-    <TouchableOpacity 
-      key={item.id} 
+    <TouchableOpacity
+      key={item.id}
       style={styles.foodCard}
       activeOpacity={0.7}
       onPress={() => handleCardPress(item)}
     >
-      <Image 
-        source={{ uri: item.image }}
-        style={styles.foodImage}
-        resizeMode="cover"
-      />
-      
+      <Image source={{ uri: item.image }} style={styles.foodImage} resizeMode="cover" />
+
       <View style={styles.foodInfo}>
         <Text style={styles.foodName} numberOfLines={2}>
           {item.name}
         </Text>
-        
+
         <Text style={styles.foodDescription} numberOfLines={2}>
           {item.description}
         </Text>
-        
+
         <View style={styles.foodFooter}>
-          <Text style={styles.priceText}>
-            {item.price} ₺
-          </Text>
-          
+          <Text style={styles.priceText}>{item.price} ₺</Text>
+
           <TouchableOpacity
             style={styles.donateButton}
             activeOpacity={0.7}
@@ -173,26 +176,11 @@ const DonationScreen = ({ route, navigation }: DonationScreenProps): React.JSX.E
   );
 
   return (
-    <View style={styles.container}>
-      {/* Header */}
-      <View style={[styles.header, { paddingTop: insets.top + SPACING.xs }]}>
+    <View style={styles.container} {...swipeResponder.panHandlers}>
+      <View style={[styles.content, { paddingTop: insets.top + SPACING.sm }]}>
+        <View style={styles.tabContainer}>
         <TouchableOpacity
-          style={styles.backButton}
-          onPress={() => navigation.goBack()}
-          activeOpacity={0.7}
-        >
-          <Text style={styles.backIcon}>←</Text>
-        </TouchableOpacity>
-        <View style={styles.placeholder} />
-      </View>
-
-      {/* Tab Buttons */}
-      <View style={styles.tabContainer}>
-        <TouchableOpacity
-          style={[
-            styles.tabButton,
-            selectedTab === 'cat' && styles.tabButtonActive,
-          ]}
+          style={[styles.tabButton, selectedTab === 'cat' && styles.tabButtonActive]}
           onPress={() => setSelectedTab('cat')}
           activeOpacity={0.7}
         >
@@ -204,10 +192,7 @@ const DonationScreen = ({ route, navigation }: DonationScreenProps): React.JSX.E
         </TouchableOpacity>
 
         <TouchableOpacity
-          style={[
-            styles.tabButton,
-            selectedTab === 'dog' && styles.tabButtonActive,
-          ]}
+          style={[styles.tabButton, selectedTab === 'dog' && styles.tabButtonActive]}
           onPress={() => setSelectedTab('dog')}
           activeOpacity={0.7}
         >
@@ -217,24 +202,19 @@ const DonationScreen = ({ route, navigation }: DonationScreenProps): React.JSX.E
             color={selectedTab === 'dog' ? COLORS.white : COLORS.text}
           />
         </TouchableOpacity>
+        </View>
+
+        <LinearGradient colors={[COLORS.white, COLORS.background]} style={styles.gradient} />
+
+        <ScrollView
+          style={styles.scrollView}
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+        >
+          {currentFoods.map((item) => renderFoodCard(item))}
+          <View style={{ height: SPACING.xl }} />
+        </ScrollView>
       </View>
-
-      {/* Gradient Transition */}
-      <LinearGradient
-        colors={[COLORS.white, COLORS.background]}
-        style={styles.gradient}
-      />
-
-      {/* Food List */}
-      <ScrollView
-        style={styles.scrollView}
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-      >
-        {currentFoods.map((item) => renderFoodCard(item))}
-        
-        <View style={{ height: SPACING.xl }} />
-      </ScrollView>
     </View>
   );
 };
@@ -244,26 +224,8 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: COLORS.white,
   },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: SPACING.md,
-    paddingBottom: SPACING.sm,
-    backgroundColor: COLORS.white,
-  },
-  backButton: {
-    width: 40,
-    height: 40,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  backIcon: {
-    fontSize: 24,
-    color: COLORS.text,
-  },
-  placeholder: {
-    width: 40,
+  content: {
+    flex: 1,
   },
   tabContainer: {
     flexDirection: 'row',
@@ -307,7 +269,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 3,
-    height: 120, // Sabit yükseklik
+    height: 120,
   },
   foodImage: {
     width: 88,

@@ -69,6 +69,10 @@ export const loadSavedPosts = async (): Promise<SavedPost[]> => {
   return cachedSavedPosts;
 };
 
+export const clearCachedSavedPosts = () => {
+  updateCachedSavedPosts([], { hasLoadedSavedPosts: false });
+};
+
 export const addSavedPostToCache = (post: PostRecord) => {
   const nextSavedPost = mapSavedPost(post);
   const nextPosts = [nextSavedPost, ...cachedSavedPosts.filter((item) => item.id !== post.id)];

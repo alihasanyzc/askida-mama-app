@@ -3,6 +3,8 @@ import { AxiosError } from 'axios';
 
 import api, { ApiSuccessResponse, setApiAuthToken } from './api';
 import { clearCachedOwnProfile, hydrateCachedOwnProfile } from '../hooks/useOwnProfile';
+import { clearCachedSavedPosts } from '../hooks/useSavedPosts';
+import { clearCachedUserPosts } from '../hooks/useUserPosts';
 
 const AUTH_STORAGE_KEY = '@askida_mama/auth_session';
 
@@ -64,12 +66,18 @@ function getErrorMessage(error: unknown, fallback: string) {
 }
 
 async function persistSession(payload: AuthPayload) {
+  clearCachedOwnProfile();
+  clearCachedUserPosts();
+  clearCachedSavedPosts();
   setApiAuthToken(payload.session.access_token);
   await AsyncStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(payload));
   hydrateCachedOwnProfile(payload.profile);
 }
 
 export async function clearAuthSession() {
+  clearCachedOwnProfile();
+  clearCachedUserPosts();
+  clearCachedSavedPosts();
   setApiAuthToken(null);
   await AsyncStorage.removeItem(AUTH_STORAGE_KEY);
 }

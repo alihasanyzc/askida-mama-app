@@ -5,6 +5,17 @@ import { ConflictError } from '../../common/errors/base-error.js';
 
 export const authService = {
   async register(input: RegisterInput) {
+    const normalizedEmail = input.email.trim().toLowerCase();
+    const normalizedUsername = input.username.trim().toLowerCase();
+
+    if (normalizedEmail === process.env.ADMIN_EMAIL?.trim().toLowerCase()) {
+      throw new ConflictError('This email address is reserved');
+    }
+
+    if (normalizedUsername === process.env.ADMIN_USERNAME?.trim().toLowerCase()) {
+      throw new ConflictError('This username is reserved');
+    }
+
     const existingProfile = await profilesRepository.findByUsername(input.username);
 
     if (existingProfile) {
