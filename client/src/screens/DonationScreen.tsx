@@ -11,7 +11,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
-import { MaterialCommunityIcons, FontAwesome5 } from '@expo/vector-icons';
+import { Ionicons, MaterialCommunityIcons, FontAwesome5 } from '@expo/vector-icons';
 import { COLORS, SPACING, FONT_SIZES } from '../constants';
 import type { StackScreenProps } from '@react-navigation/stack';
 import type { MapStackParamList } from '../types/navigation';
@@ -134,12 +134,20 @@ const DonationScreen = ({ route, navigation }: DonationScreenProps): React.JSX.E
 
   const currentFoods = selectedTab === 'dog' ? dogFoods : catFoods;
 
+  const openProductDetail = (item: DonationProduct) => {
+    navigation.navigate('ProductDetail', {
+      product: item,
+      products: currentFoods,
+      initialIndex: Math.max(0, currentFoods.findIndex((food) => food.id === item.id)),
+    });
+  };
+
   const handleDonate = (item: DonationProduct) => {
-    navigation.navigate('ProductDetail', { product: item });
+    openProductDetail(item);
   };
 
   const handleCardPress = (item: DonationProduct) => {
-    navigation.navigate('ProductDetail', { product: item });
+    openProductDetail(item);
   };
 
   const renderFoodCard = (item: DonationProduct) => (
@@ -177,7 +185,14 @@ const DonationScreen = ({ route, navigation }: DonationScreenProps): React.JSX.E
 
   return (
     <View style={styles.container} {...swipeResponder.panHandlers}>
-      <View style={[styles.content, { paddingTop: insets.top + SPACING.sm }]}>
+      <View style={styles.content}>
+        <View style={[styles.topBar, { paddingTop: insets.top + SPACING.xs }]}>
+          <TouchableOpacity style={styles.iconButton} onPress={() => navigation.goBack()} activeOpacity={0.7}>
+            <Ionicons name="arrow-back" size={24} color={COLORS.secondary} />
+          </TouchableOpacity>
+          <View style={styles.headerSpacer} />
+        </View>
+
         <View style={styles.tabContainer}>
         <TouchableOpacity
           style={[styles.tabButton, selectedTab === 'cat' && styles.tabButtonActive]}
@@ -226,6 +241,25 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
+  },
+  topBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: SPACING.lg,
+    paddingBottom: SPACING.sm,
+    marginBottom: SPACING.md,
+    backgroundColor: COLORS.white,
+  },
+  iconButton: {
+    width: 40,
+    height: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  headerSpacer: {
+    width: 40,
+    height: 40,
   },
   tabContainer: {
     flexDirection: 'row',

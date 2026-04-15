@@ -155,7 +155,7 @@ const ProfilePostFeedScreen = ({
   );
 
   const renderHeader = () => (
-    <View style={[styles.header, { paddingTop: insets.top + SPACING.sm }]}>
+    <View style={[styles.header, { paddingTop: insets.top + SPACING.xs }]}>
       <TouchableOpacity
         style={styles.backButton}
         onPress={() => navigation.goBack()}

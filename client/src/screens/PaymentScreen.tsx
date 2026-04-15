@@ -67,9 +67,9 @@ const PaymentScreen = ({ route, navigation }: PaymentScreenProps): React.JSX.Ele
   };
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top }]}>
+    <View style={styles.container}>
       {/* Header */}
-      <View style={styles.header}>
+      <View style={[styles.header, { paddingTop: insets.top + SPACING.xs }]}>
         <TouchableOpacity
           style={styles.backButton}
           onPress={() => navigation.goBack()}
@@ -83,7 +83,7 @@ const PaymentScreen = ({ route, navigation }: PaymentScreenProps): React.JSX.Ele
 
       <ScrollView
         style={styles.scrollView}
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[styles.scrollContent, { paddingBottom: Math.max(insets.bottom, SPACING.xs) }]}
         showsVerticalScrollIndicator={false}
       >
         {/* Kayıtlı Kartlarım Section */}
@@ -158,10 +158,7 @@ const PaymentScreen = ({ route, navigation }: PaymentScreenProps): React.JSX.Ele
           <Text style={styles.addCardIcon}>+</Text>
           <Text style={styles.addCardText}>Yeni Kart Ekle</Text>
         </TouchableOpacity>
-      </ScrollView>
 
-      {/* Make Payment Button */}
-      <View style={[styles.footer, { paddingBottom: insets.bottom + SPACING.sm }]}>
         <TouchableOpacity
           style={[
             styles.paymentButton,
@@ -173,7 +170,7 @@ const PaymentScreen = ({ route, navigation }: PaymentScreenProps): React.JSX.Ele
         >
           <Text style={styles.paymentButtonText}>Bağış Yap</Text>
         </TouchableOpacity>
-      </View>
+      </ScrollView>
     </View>
   );
 };
@@ -188,7 +185,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: SPACING.md,
-    paddingVertical: SPACING.md,
+    paddingBottom: SPACING.sm,
     backgroundColor: COLORS.white,
     borderBottomWidth: 1,
     borderBottomColor: COLORS.lightGray,
@@ -218,7 +215,6 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     padding: SPACING.lg,
-    paddingBottom: SPACING.xl,
   },
   sectionTitle: {
     fontSize: FONT_SIZES.xxl,
@@ -329,23 +325,21 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#795548',
   },
-  footer: {
-    backgroundColor: COLORS.white,
-    paddingHorizontal: SPACING.lg,
-    paddingTop: SPACING.md,
-    borderTopWidth: 1,
-    borderTopColor: COLORS.lightGray,
-  },
   paymentButton: {
-    backgroundColor: '#FF8C42',
-    borderRadius: 16,
-    paddingVertical: SPACING.lg,
+    height: 62,
+    borderRadius: 18,
+    backgroundColor: COLORS.primary,
+    flexDirection: 'row',
     alignItems: 'center',
-    shadowColor: '#FF8C42',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 8,
-    elevation: 5,
+    justifyContent: 'center',
+    gap: SPACING.sm,
+    width: '100%',
+    marginTop: SPACING.md,
+    shadowColor: COLORS.primaryDark,
+    shadowOpacity: 0.25,
+    shadowRadius: 14,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 6,
   },
   paymentButtonDisabled: {
     backgroundColor: '#E0E0E0',
@@ -354,7 +348,7 @@ const styles = StyleSheet.create({
   },
   paymentButtonText: {
     fontSize: FONT_SIZES.lg,
-    fontWeight: '700',
+    fontWeight: '800',
     color: COLORS.white,
   },
 });

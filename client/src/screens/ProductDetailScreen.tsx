@@ -1,172 +1,167 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  TouchableOpacity,
-  Image,
   Dimensions,
+  Image,
+  NativeScrollEvent,
+  NativeSyntheticEvent,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from 'react-native';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { COLORS, SPACING, FONT_SIZES } from '../constants';
 import type { StackScreenProps } from '@react-navigation/stack';
-import type { MapStackParamList } from '../types/navigation';
+
+import { COLORS, FONT_SIZES, SPACING } from '../constants';
 import type { ProductRecord } from '../types/domain';
+import type { MapStackParamList } from '../types/navigation';
 
 const { width } = Dimensions.get('window');
+const carouselWidth = width - SPACING.lg * 2;
 
 type ProductDetailScreenProps = StackScreenProps<MapStackParamList, 'ProductDetail'>;
 
 type ProductDetailView = Partial<ProductRecord> & {
   image?: string;
-  category?: string;
-  weight?: string;
 };
+
+function getAnimalLabel(product: ProductDetailView) {
+  if (product.animal_type === 'dog' || product.category === 'Köpek') {
+    return 'Köpek Maması';
+  }
+
+  if (product.animal_type === 'cat' || product.category === 'Kedi') {
+    return 'Kedi Maması';
+  }
+
+  return 'Mama Ürünü';
+}
 
 const ProductDetailScreen = ({ route, navigation }: ProductDetailScreenProps): React.JSX.Element => {
   const insets = useSafeAreaInsets();
   const product = (route.params?.product as ProductDetailView | undefined) ?? {
-    name: 'Ürün',
+    name: 'Mama ürünü',
     price: 0,
-    description: '',
+    description: 'Ürün açıklaması bulunamadı.',
+    nutrition_info: null,
   };
+  const products =
+    (route.params?.products as ProductDetailView[] | undefined)?.length
+      ? (route.params?.products as ProductDetailView[])
+      : [product];
+  const [selectedIndex, setSelectedIndex] = useState(
+    Math.min(Math.max(route.params?.initialIndex ?? 0, 0), products.length - 1),
+  );
+  const detailProduct = product;
+
   const [quantity, setQuantity] = useState(1);
+  const animalLabel = getAnimalLabel(detailProduct);
+  const nutritionInfo = detailProduct.nutrition_info?.trim() || 'Bu ürün için besin bilgisi eklenmemiş.';
+  const productPrice = detailProduct.price ?? 0;
+  const totalPrice = productPrice * quantity;
 
-  const handleDecrease = () => {
-    if (quantity > 1) {
-      setQuantity(quantity - 1);
-    }
+  const decreaseQuantity = () => {
+    setQuantity((currentQuantity) => Math.max(1, currentQuantity - 1));
   };
 
-  const handleIncrease = () => {
-    setQuantity(quantity + 1);
+  const increaseQuantity = () => {
+    setQuantity((currentQuantity) => currentQuantity + 1);
   };
-
-  const totalPrice = product.price * quantity;
 
   const handleDonate = () => {
     navigation.navigate('Payment', { amount: totalPrice });
   };
 
+  const handleImageSwipe = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+    const nextIndex = Math.round(event.nativeEvent.contentOffset.x / carouselWidth);
+    setSelectedIndex(Math.min(Math.max(nextIndex, 0), products.length - 1));
+  };
+
   return (
     <View style={styles.container}>
-      <View style={[styles.header, { paddingTop: insets.top + SPACING.xs }]}>
-        <TouchableOpacity
-          style={styles.backButton}
-          onPress={() => navigation.goBack()}
-          activeOpacity={0.7}
-        >
-          <Text style={styles.backIcon}>←</Text>
-        </TouchableOpacity>
-        <View style={styles.placeholder} />
-      </View>
-
       <ScrollView
-        style={styles.scrollView}
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[styles.scrollContent, { paddingBottom: Math.max(insets.bottom, SPACING.sm) }]}
       >
-        <View style={styles.imageContainer}>
-          <Image
-            source={{ uri: product.image ?? product.image_url ?? undefined }}
-            style={styles.productImage}
-            resizeMode="cover"
-          />
+        <View style={[styles.topBar, { paddingTop: insets.top + SPACING.xs }]}>
+          <TouchableOpacity style={styles.iconButton} onPress={() => navigation.goBack()} activeOpacity={0.7}>
+            <Ionicons name="arrow-back" size={24} color={COLORS.secondary} />
+          </TouchableOpacity>
+          <View style={styles.headerSpacer} />
         </View>
 
-        <View style={styles.contentContainer}>
-          <Text style={styles.productName}>{product.name}</Text>
-          <Text style={styles.productSubtitle}>
-            {product.category === 'Köpek' ? 'Premium Dog' : 'Premium Cat'} • {product.weight}
-          </Text>
+        <View style={styles.hero}>
+          <Text style={styles.productName}>{detailProduct.name}</Text>
+          <Text style={styles.productCategory}>{animalLabel}</Text>
+
+          <ScrollView
+            horizontal
+            pagingEnabled
+            showsHorizontalScrollIndicator={false}
+            style={styles.imageCarousel}
+            contentOffset={{ x: selectedIndex * carouselWidth, y: 0 }}
+            onMomentumScrollEnd={handleImageSwipe}
+          >
+            {products.map((item, index) => {
+              const itemImageUri = item.image_url ?? item.image;
+
+              return (
+                <View key={`${item.id ?? item.name ?? 'product'}-${index}`} style={styles.imageWrap}>
+                  {itemImageUri ? (
+                    <Image source={{ uri: itemImageUri }} style={styles.productImage} resizeMode="contain" />
+                  ) : (
+                    <View style={[styles.productImage, styles.imageFallback]}>
+                      <MaterialCommunityIcons name="food-drumstick-outline" size={58} color={COLORS.primary} />
+                    </View>
+                  )}
+                </View>
+              );
+            })}
+          </ScrollView>
+
+          <View style={styles.sliderDots}>
+            {products.map((item, index) => (
+              <View
+                key={`${item.id ?? item.name ?? 'dot'}-${index}`}
+                style={[styles.dot, selectedIndex === index && styles.dotActive]}
+              />
+            ))}
+          </View>
+        </View>
+
+        <View style={styles.content}>
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Açıklama</Text>
+            <Text style={styles.descriptionText}>{detailProduct.description}</Text>
+          </View>
 
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Miktar Seçin</Text>
-            <View style={styles.quantityContainer}>
-              <TouchableOpacity
-                style={styles.quantityButton}
-                onPress={handleDecrease}
-                activeOpacity={0.7}
-              >
+            <Text style={styles.sectionTitle}>Besin Bilgisi</Text>
+            <Text style={styles.nutritionText}>{nutritionInfo}</Text>
+          </View>
+
+          <View style={styles.priceRow}>
+            <View>
+              <Text style={styles.priceLabel}>Fiyat:</Text>
+              <Text style={styles.priceValue}>{totalPrice} ₺</Text>
+              <Text style={styles.unitPriceText}>{productPrice} ₺ / adet</Text>
+            </View>
+            <View style={styles.quantityControl}>
+              <TouchableOpacity style={styles.quantityButton} onPress={decreaseQuantity} activeOpacity={0.75}>
                 <Text style={styles.quantityButtonText}>-</Text>
               </TouchableOpacity>
-
-              <View style={styles.quantityDisplay}>
-                <Text style={styles.quantityText}>{quantity} kg</Text>
-                <Text style={styles.quantityPrice}>{product.price} ₺ / kg</Text>
-                <Text style={styles.quantityTotal}>Toplam: {totalPrice} ₺</Text>
-              </View>
-
-              <TouchableOpacity
-                style={styles.quantityButton}
-                onPress={handleIncrease}
-                activeOpacity={0.7}
-              >
+              <Text style={styles.quantityText}>{quantity}</Text>
+              <TouchableOpacity style={styles.quantityButton} onPress={increaseQuantity} activeOpacity={0.75}>
                 <Text style={styles.quantityButtonText}>+</Text>
               </TouchableOpacity>
             </View>
           </View>
 
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Ürün Açıklaması</Text>
-            <Text style={styles.descriptionText}>{product.description}</Text>
-          </View>
-
-          <View style={styles.section}>
-            <View style={styles.infoHeader}>
-              <Text style={styles.infoIcon}>📦</Text>
-              <Text style={styles.sectionTitle}>İçerik Bilgisi</Text>
-            </View>
-
-            <View style={styles.nutritionGrid}>
-              <View style={styles.nutritionItem}>
-                <Text style={styles.nutritionLabel}>Protein</Text>
-                <Text style={styles.nutritionValue}>%28</Text>
-              </View>
-              <View style={styles.nutritionItem}>
-                <Text style={styles.nutritionLabel}>Yağ</Text>
-                <Text style={styles.nutritionValue}>%15</Text>
-              </View>
-              <View style={styles.nutritionItem}>
-                <Text style={styles.nutritionLabel}>Kül</Text>
-                <Text style={styles.nutritionValue}>%8</Text>
-              </View>
-              <View style={styles.nutritionItem}>
-                <Text style={styles.nutritionLabel}>Ham Lif</Text>
-                <Text style={styles.nutritionValue}>%3.5</Text>
-              </View>
-            </View>
-
-            <View style={styles.ingredientsContainer}>
-              <Text style={styles.ingredientsLabel}>İçindekiler</Text>
-              <Text style={styles.ingredientsText}>
-                Tavuk eti, Pirinç, Mısır, Balık yağı, Vitamin ve mineraller, Prebiyotikler
-              </Text>
-            </View>
-          </View>
-
-          <View style={[styles.section, styles.impactSection]}>
-            <View style={styles.impactIcon}>
-              <Text style={styles.impactIconText}>❤️</Text>
-            </View>
-            <View style={styles.impactContent}>
-              <Text style={styles.impactTitle}>Bağışınızın Etkisi</Text>
-              <Text style={styles.impactText}>
-                Bu bağışla yaklaşık {Math.floor(quantity * 4)}-{Math.ceil(quantity * 5)} sokak hayvanının 1 hafta boyunca beslenmesine destek olacaksınız.
-              </Text>
-            </View>
-          </View>
-
-          <TouchableOpacity
-            style={styles.donateButton}
-            onPress={handleDonate}
-            activeOpacity={0.8}
-          >
-            <Text style={styles.donateButtonText}>Bağış Yap</Text>
+          <TouchableOpacity style={styles.ctaButton} activeOpacity={0.85} onPress={handleDonate}>
+            <Text style={styles.ctaText}>Bağış Yap</Text>
           </TouchableOpacity>
-
-          <View style={{ height: insets.bottom + SPACING.lg }} />
         </View>
       </ScrollView>
     </View>
@@ -178,212 +173,173 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: COLORS.white,
   },
-  header: {
+  scrollContent: {
+    paddingHorizontal: SPACING.lg,
+    backgroundColor: COLORS.white,
+  },
+  topBar: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: SPACING.md,
     paddingBottom: SPACING.sm,
-    backgroundColor: COLORS.white,
+    marginBottom: SPACING.md,
   },
-  backButton: {
+  iconButton: {
     width: 40,
     height: 40,
+    alignItems: 'center',
     justifyContent: 'center',
+  },
+  headerSpacer: {
+    width: 40,
+    height: 40,
+  },
+  hero: {
     alignItems: 'center',
   },
-  backIcon: {
-    fontSize: 24,
-    color: COLORS.text,
+  productName: {
+    fontSize: 30,
+    lineHeight: 36,
+    fontWeight: '800',
+    color: COLORS.secondary,
+    textAlign: 'center',
+    marginBottom: SPACING.xs,
   },
-  placeholder: {
-    width: 40,
+  productCategory: {
+    fontSize: FONT_SIZES.md,
+    fontWeight: '600',
+    color: COLORS.textSecondary,
+    textAlign: 'center',
   },
-  scrollView: {
-    flex: 1,
+  imageCarousel: {
+    width: carouselWidth,
+    marginTop: SPACING.lg,
   },
-  scrollContent: {
-    paddingBottom: 0,
-  },
-  imageContainer: {
-    paddingHorizontal: SPACING.lg,
-    paddingTop: SPACING.md,
-    paddingBottom: SPACING.lg,
+  imageWrap: {
+    width: carouselWidth,
+    height: width * 0.78,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   productImage: {
     width: '100%',
-    height: width * 0.75,
-    borderRadius: 20,
+    height: '100%',
+  },
+  imageFallback: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 32,
+    backgroundColor: COLORS.accentLight,
+  },
+  sliderDots: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    marginTop: SPACING.md,
+    marginBottom: SPACING.xl,
+  },
+  dot: {
+    width: 7,
+    height: 7,
+    borderRadius: 4,
     backgroundColor: COLORS.lightGray,
   },
-  contentContainer: {
-    paddingHorizontal: SPACING.lg,
+  dotActive: {
+    width: 28,
+    backgroundColor: COLORS.primary,
   },
-  productName: {
-    fontSize: FONT_SIZES.xxl,
-    fontWeight: '700',
-    color: COLORS.text,
-    marginBottom: SPACING.xs,
-  },
-  productSubtitle: {
-    fontSize: FONT_SIZES.md,
-    color: COLORS.textSecondary,
-    marginBottom: SPACING.xl,
+  content: {
+    paddingBottom: 0,
   },
   section: {
     marginBottom: SPACING.xl,
   },
   sectionTitle: {
-    fontSize: FONT_SIZES.lg,
-    fontWeight: '700',
-    color: COLORS.text,
+    fontSize: FONT_SIZES.xl,
+    fontWeight: '800',
+    color: COLORS.secondary,
     marginBottom: SPACING.md,
-  },
-  quantityContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#FFF5E6',
-    borderRadius: 16,
-    padding: SPACING.md,
-  },
-  quantityButton: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: COLORS.primary,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  quantityButtonText: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: COLORS.white,
-  },
-  quantityDisplay: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  quantityText: {
-    fontSize: FONT_SIZES.xxl,
-    fontWeight: '700',
-    color: COLORS.text,
-  },
-  quantityPrice: {
-    fontSize: FONT_SIZES.sm,
-    color: COLORS.textSecondary,
-    marginTop: 4,
-  },
-  quantityTotal: {
-    fontSize: FONT_SIZES.md,
-    fontWeight: '700',
-    color: COLORS.primary,
-    marginTop: 4,
   },
   descriptionText: {
     fontSize: FONT_SIZES.md,
+    lineHeight: 24,
     color: COLORS.textSecondary,
-    lineHeight: 22,
   },
-  infoHeader: {
+  priceRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: SPACING.md,
+    justifyContent: 'space-between',
+    marginBottom: SPACING.xl,
   },
-  infoIcon: {
-    fontSize: 20,
-    marginRight: SPACING.xs,
-  },
-  nutritionGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: SPACING.sm,
-    marginBottom: SPACING.md,
-  },
-  nutritionItem: {
-    flex: 1,
-    minWidth: '45%',
-    backgroundColor: COLORS.white,
-    borderWidth: 1,
-    borderColor: COLORS.lightGray,
-    borderRadius: 12,
-    padding: SPACING.md,
-  },
-  nutritionLabel: {
-    fontSize: FONT_SIZES.sm,
-    color: COLORS.textSecondary,
-    marginBottom: 4,
-  },
-  nutritionValue: {
+  priceLabel: {
     fontSize: FONT_SIZES.xl,
-    fontWeight: '700',
-    color: COLORS.text,
+    fontWeight: '800',
+    color: COLORS.secondary,
   },
-  ingredientsContainer: {
-    backgroundColor: '#FFF5E6',
-    borderRadius: 12,
-    padding: SPACING.md,
+  priceValue: {
+    marginTop: 4,
+    fontSize: 30,
+    fontWeight: '900',
+    color: COLORS.primary,
   },
-  ingredientsLabel: {
-    fontSize: FONT_SIZES.md,
-    fontWeight: '600',
-    color: COLORS.text,
-    marginBottom: SPACING.xs,
-  },
-  ingredientsText: {
+  unitPriceText: {
+    marginTop: 2,
     fontSize: FONT_SIZES.sm,
+    fontWeight: '700',
     color: COLORS.textSecondary,
-    lineHeight: 20,
   },
-  impactSection: {
+  quantityControl: {
     flexDirection: 'row',
-    backgroundColor: COLORS.primary,
-    borderRadius: 16,
-    padding: SPACING.lg,
     alignItems: 'center',
+    borderRadius: 22,
+    backgroundColor: COLORS.accentLight,
+    paddingHorizontal: 6,
+    paddingVertical: 6,
   },
-  impactIcon: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: COLORS.white,
+  quantityButton: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    alignItems: 'center',
     justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: SPACING.md,
+    backgroundColor: COLORS.white,
   },
-  impactIconText: {
-    fontSize: 28,
-  },
-  impactContent: {
-    flex: 1,
-  },
-  impactTitle: {
-    fontSize: FONT_SIZES.lg,
-    fontWeight: '700',
-    color: COLORS.white,
-    marginBottom: SPACING.xs,
-  },
-  impactText: {
-    fontSize: FONT_SIZES.sm,
-    color: COLORS.white,
-    lineHeight: 20,
-    opacity: 0.9,
-  },
-  donateButton: {
-    backgroundColor: COLORS.primary,
-    borderRadius: 30,
-    paddingVertical: SPACING.lg,
-    alignItems: 'center',
-    marginTop: SPACING.xl,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 8,
-  },
-  donateButtonText: {
+  quantityButtonText: {
     fontSize: FONT_SIZES.xl,
-    fontWeight: '700',
+    fontWeight: '900',
+    color: COLORS.primary,
+    lineHeight: 24,
+  },
+  quantityText: {
+    minWidth: 34,
+    textAlign: 'center',
+    fontSize: FONT_SIZES.md,
+    fontWeight: '900',
+    color: COLORS.secondary,
+  },
+  nutritionText: {
+    fontSize: FONT_SIZES.md,
+    lineHeight: 24,
+    color: COLORS.textSecondary,
+  },
+  ctaButton: {
+    height: 62,
+    borderRadius: 18,
+    backgroundColor: COLORS.primary,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: SPACING.sm,
+    shadowColor: COLORS.primaryDark,
+    shadowOpacity: 0.25,
+    shadowRadius: 14,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 6,
+  },
+  ctaText: {
+    fontSize: FONT_SIZES.lg,
+    fontWeight: '800',
     color: COLORS.white,
   },
 });

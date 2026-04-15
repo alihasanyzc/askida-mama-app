@@ -155,7 +155,7 @@ const EditProfileScreen = ({ route, navigation }: EditProfileScreenProps): React
   return (
     <View style={styles.container}>
       {/* Header */}
-      <View style={[styles.header, { paddingTop: insets.top + SPACING.sm }]}>
+      <View style={[styles.header, { paddingTop: insets.top + SPACING.xs }]}>
         <TouchableOpacity
           style={styles.backButton}
           onPress={() => navigation.goBack()}

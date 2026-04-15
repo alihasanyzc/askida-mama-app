@@ -208,7 +208,7 @@ const CreateAnnouncementScreen = ({ navigation }: CreateAnnouncementScreenProps)
   return (
     <View style={styles.container}>
       {/* Header: safe area, başlık yok; geri butonu solda */}
-      <View style={[styles.header, { paddingTop: insets.top + 12 }]}>
+      <View style={[styles.header, { paddingTop: insets.top + SPACING.xs }]}>
         <TouchableOpacity
           style={styles.backButton}
           onPress={() => navigation.goBack()}

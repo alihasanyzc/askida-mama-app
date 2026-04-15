@@ -146,7 +146,7 @@ const CreatePostScreen = ({ navigation }: CreatePostScreenProps): React.JSX.Elem
       />
 
       {/* Header */}
-      <View style={[styles.header, { paddingTop: insets.top + SPACING.sm }]}>
+      <View style={[styles.header, { paddingTop: insets.top + SPACING.xs }]}>
         <TouchableOpacity
           style={styles.backButton}
           onPress={() => navigation.goBack()}

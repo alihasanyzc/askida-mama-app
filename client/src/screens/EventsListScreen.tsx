@@ -58,7 +58,7 @@ const EventsListScreen = ({ navigation }: EventsListScreenProps): React.JSX.Elem
 
   return (
     <View style={styles.container}>
-      <View style={[styles.header, { paddingTop: insets.top + SPACING.sm }]}>
+      <View style={[styles.header, { paddingTop: insets.top + SPACING.xs }]}>
         <TouchableOpacity
           style={styles.backButton}
           onPress={() => navigation.goBack()}

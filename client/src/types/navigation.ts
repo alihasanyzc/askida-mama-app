@@ -23,7 +23,14 @@ export type MapStackParamList = {
   MapMain: undefined;
   Donation: { type?: 'food' | 'medical'; amount?: number } | undefined;
   MedicalDonation: undefined;
-  ProductDetail: { productId?: string; product?: Partial<ProductRecord> } | undefined;
+  ProductDetail:
+    | {
+        productId?: string;
+        product?: Partial<ProductRecord>;
+        products?: Partial<ProductRecord>[];
+        initialIndex?: number;
+      }
+    | undefined;
   QRScanner: undefined;
   BowlDetail: { bowl?: Partial<BowlRecord> } | undefined;
   EditAddress: { bowl?: Partial<BowlRecord> } | undefined;
