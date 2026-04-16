@@ -10,6 +10,7 @@ export type BowlMarkerRecord = {
   status_label: BowlStatusLabel;
   latitude: number;
   longitude: number;
+  address_line: string | null;
   location_note: string | null;
   location_description: string | null;
   maps_url: string;
@@ -35,6 +36,7 @@ export type UpdateBowlStatusInput = {
 export type UpdateBowlAddressInput = {
   latitude: number;
   longitude: number;
+  address_line?: string | null;
   location_note?: string | null;
   locationDescription?: string | null;
 };

@@ -1,0 +1,3 @@
+ALTER TABLE public.clinics
+ADD COLUMN IF NOT EXISTS neighborhood VARCHAR(80),
+ADD COLUMN IF NOT EXISTS address_line VARCHAR(200);

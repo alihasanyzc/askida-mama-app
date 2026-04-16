@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -7,16 +7,20 @@ import {
   Dimensions,
   Modal,
   TextInput,
-  Animated,
+  Image,
   TouchableWithoutFeedback,
+  ActivityIndicator,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { COLORS, SPACING, FONT_SIZES } from '../constants';
+import { getBowlDetail, updateBowlStatus } from '../services/bowls';
 import type { StackScreenProps } from '@react-navigation/stack';
 import type { MapStackParamList } from '../types/navigation';
 import type { BowlRecord } from '../types/domain';
 
 const { width, height } = Dimensions.get('window');
+const EMPTY_BOWL_IMAGE = require('../../../assets/icons/bowl-empty.png');
+const FULL_BOWL_IMAGE = require('../../../assets/icons/bowl-full.png');
 
 type BowlDetailScreenProps = StackScreenProps<MapStackParamList, 'BowlDetail'>;
 
@@ -26,11 +30,76 @@ type BowlDetailView = Partial<BowlRecord> & {
   neighborhood?: string;
 };
 
+function isUuidLike(value: string | undefined) {
+  if (!value) {
+    return false;
+  }
+
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
+}
+
 const BowlDetailScreen = ({ route, navigation }: BowlDetailScreenProps): React.JSX.Element => {
   const insets = useSafeAreaInsets();
-  const bowl = (route.params?.bowl as BowlDetailView | undefined) ?? undefined;
-  
-  // Güvenlik kontrolü - bowl yoksa varsayılan değerler kullan
+  const initialBowl = (route.params?.bowl as BowlDetailView | undefined) ?? undefined;
+  const [bowl, setBowl] = useState<BowlDetailView | undefined>(initialBowl);
+  const [selectedStatus, setSelectedStatus] = useState<'empty' | 'full'>(
+    initialBowl?.status === 'full' ? 'full' : 'empty',
+  );
+  const [donationModalVisible, setDonationModalVisible] = useState(false);
+  const [selectedAmount, setSelectedAmount] = useState<number | null>(null);
+  const [customAmount, setCustomAmount] = useState('');
+  const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
+  const addressText =
+    bowl?.address_line?.trim() ||
+    bowl?.location?.trim() ||
+    bowl?.location_note?.trim() ||
+    'Konum bilgisi mevcut değil';
+  const addressHint = bowl?.location_description?.trim() || bowl?.neighborhood?.trim() || '';
+
+  useEffect(() => {
+    setBowl(initialBowl);
+    setSelectedStatus(initialBowl?.status === 'full' ? 'full' : 'empty');
+  }, [initialBowl]);
+
+  useEffect(() => {
+    if (!isUuidLike(initialBowl?.id)) {
+      return;
+    }
+
+    let isMounted = true;
+
+    const loadBowlDetail = async () => {
+      try {
+        const nextBowl = await getBowlDetail(initialBowl.id);
+
+        if (!isMounted) {
+          return;
+        }
+
+        setBowl((currentBowl) => ({
+          ...(currentBowl ?? {}),
+          ...nextBowl,
+        }));
+        setSelectedStatus(nextBowl.status === 'full' ? 'full' : 'empty');
+      } catch (error) {
+        const status =
+          typeof error === 'object' && error && 'response' in error
+            ? (error as { response?: { status?: number } }).response?.status
+            : undefined;
+
+        if (status !== 404) {
+          console.error('Bowl detail fetch error:', error);
+        }
+      }
+    };
+
+    void loadBowlDetail();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [initialBowl?.id]);
+
   if (!bowl) {
     return (
       <View style={[styles.container, { paddingTop: insets.top }]}>
@@ -53,13 +122,6 @@ const BowlDetailScreen = ({ route, navigation }: BowlDetailScreenProps): React.J
       </View>
     );
   }
-  
-  const [selectedStatus, setSelectedStatus] = useState<'empty' | 'full'>(
-    bowl?.status === 'full' ? 'full' : 'empty',
-  );
-  const [donationModalVisible, setDonationModalVisible] = useState(false);
-  const [selectedAmount, setSelectedAmount] = useState<number | null>(null);
-  const [customAmount, setCustomAmount] = useState('');
 
   const amounts = [50, 100, 150, 200];
 
@@ -85,6 +147,32 @@ const BowlDetailScreen = ({ route, navigation }: BowlDetailScreenProps): React.J
     navigation.navigate('EditAddress', { bowl });
   };
 
+  const handleStatusChange = async (nextStatus: 'empty' | 'full') => {
+    if (!bowl?.id || !isUuidLike(bowl.id) || nextStatus === selectedStatus || isUpdatingStatus) {
+      setSelectedStatus(nextStatus);
+      return;
+    }
+
+    const previousStatus = selectedStatus;
+    setSelectedStatus(nextStatus);
+    setIsUpdatingStatus(true);
+
+    try {
+      const updatedBowl = await updateBowlStatus(bowl.id, { status: nextStatus });
+
+      setBowl((currentBowl) => ({
+        ...(currentBowl ?? {}),
+        ...updatedBowl,
+      }));
+      setSelectedStatus(updatedBowl.status === 'full' ? 'full' : 'empty');
+    } catch (error) {
+      console.error('Bowl status update error:', error);
+      setSelectedStatus(previousStatus);
+    } finally {
+      setIsUpdatingStatus(false);
+    }
+  };
+
   const isDonationValid = selectedAmount !== null || (customAmount && parseFloat(customAmount) > 0);
 
   return (
@@ -101,19 +189,14 @@ const BowlDetailScreen = ({ route, navigation }: BowlDetailScreenProps): React.J
       {/* Top Section - Icon, Title, Status */}
       <View style={styles.topSection}>
         <View style={styles.iconContainer}>
-          <View style={[
-            styles.iconCircle,
-            selectedStatus === 'full' ? styles.iconCircleGreen : styles.iconCircleRed
-          ]}>
-            <Text style={styles.iconText}>
-              {bowl.type === 'cat' ? '🐱' : bowl.type === 'dog' ? '🐶' : '🥣'}
-            </Text>
-          </View>
+          <Image
+            source={selectedStatus === 'full' ? FULL_BOWL_IMAGE : EMPTY_BOWL_IMAGE}
+            style={styles.bowlImage}
+            resizeMode="contain"
+          />
         </View>
 
-        <Text style={styles.bowlType}>
-          {bowl.type === 'cat' ? 'Kedi Mama Kabı' : bowl.type === 'dog' ? 'Köpek Mama Kabı' : 'Mama Kabı'}
-        </Text>
+        <Text style={styles.bowlType}>Mama Kabı</Text>
 
         <View style={styles.statusBadgeContainer}>
           <View
@@ -151,19 +234,26 @@ const BowlDetailScreen = ({ route, navigation }: BowlDetailScreenProps): React.J
             <Text style={styles.locationIcon}>📍</Text>
           </View>
           <View style={styles.locationTextContainer}>
-            <Text style={styles.locationAddress}>{bowl.location || 'Konum bilgisi mevcut değil'}</Text>
-            <Text style={styles.locationNeighborhood}>{bowl.neighborhood || ''}</Text>
+            <Text style={styles.locationAddress}>{addressText}</Text>
+            <Text style={styles.locationNeighborhood}>{addressHint}</Text>
           </View>
         </View>
 
         <Text style={styles.sectionTitle}>Durumu Güncelle</Text>
+        {isUpdatingStatus ? (
+          <View style={styles.statusUpdatingRow}>
+            <ActivityIndicator size="small" color={COLORS.primary} />
+            <Text style={styles.statusUpdatingText}>Durum guncelleniyor...</Text>
+          </View>
+        ) : null}
         <View style={styles.statusButtonsContainer}>
           <TouchableOpacity
             style={[
               styles.statusButton,
-              selectedStatus === 'empty' && styles.statusButtonActive,
+              selectedStatus === 'empty' && styles.statusButtonEmptyActive,
             ]}
-            onPress={() => setSelectedStatus('empty')}
+            onPress={() => void handleStatusChange('empty')}
+            disabled={isUpdatingStatus}
             activeOpacity={0.7}
           >
             <Text
@@ -178,9 +268,10 @@ const BowlDetailScreen = ({ route, navigation }: BowlDetailScreenProps): React.J
           <TouchableOpacity
             style={[
               styles.statusButton,
-              selectedStatus === 'full' && styles.statusButtonActive,
+              selectedStatus === 'full' && styles.statusButtonFullActive,
             ]}
-            onPress={() => setSelectedStatus('full')}
+            onPress={() => void handleStatusChange('full')}
+            disabled={isUpdatingStatus}
             activeOpacity={0.7}
           >
             <Text
@@ -381,26 +472,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: SPACING.md,
   },
-  iconCircle: {
-    width: 120,
-    height: 120,
-    borderRadius: 24,
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 8,
-    elevation: 8,
-  },
-  iconCircleGreen: {
-    backgroundColor: '#66BB6A',
-  },
-  iconCircleRed: {
-    backgroundColor: '#EF5350',
-  },
-  iconText: {
-    fontSize: 60,
+  bowlImage: {
+    width: 280,
+    height: 190,
   },
   bowlType: {
     fontSize: FONT_SIZES.xxl,
@@ -497,6 +571,17 @@ const styles = StyleSheet.create({
     gap: SPACING.md,
     marginBottom: SPACING.md,
   },
+  statusUpdatingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.sm,
+    marginBottom: SPACING.sm,
+  },
+  statusUpdatingText: {
+    fontSize: FONT_SIZES.sm,
+    color: COLORS.textSecondary,
+    fontWeight: '600',
+  },
   statusButton: {
     flex: 1,
     paddingVertical: SPACING.md - 2,
@@ -506,7 +591,11 @@ const styles = StyleSheet.create({
     borderColor: '#FFF3E0',
     alignItems: 'center',
   },
-  statusButtonActive: {
+  statusButtonEmptyActive: {
+    backgroundColor: '#EF5350',
+    borderColor: '#EF5350',
+  },
+  statusButtonFullActive: {
     backgroundColor: '#66BB6A',
     borderColor: '#66BB6A',
   },

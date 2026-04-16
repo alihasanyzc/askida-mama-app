@@ -44,6 +44,7 @@ export type BowlRecord = {
   status_label?: string;
   latitude?: number;
   longitude?: number;
+  address_line?: string | null;
   location_note?: string | null;
   location_description?: string | null;
   maps_url?: string;
@@ -147,6 +148,9 @@ export type ClinicRecord = {
   longitude: number;
   city: string | null;
   district: string | null;
+  neighborhood: string | null;
+  address_line: string | null;
+  phone: string | null;
   location_description: string | null;
   maps_url: string;
   created_at: string | null;

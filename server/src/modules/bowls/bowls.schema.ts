@@ -13,6 +13,7 @@ export const updateBowlStatusSchema = Joi.object<UpdateBowlStatusInput>({
 export const updateBowlAddressSchema = Joi.object<UpdateBowlAddressInput>({
   latitude: Joi.number().min(-90).max(90).required(),
   longitude: Joi.number().min(-180).max(180).required(),
+  address_line: Joi.string().trim().max(200).allow(null, '').optional(),
   location_note: Joi.string().trim().max(200).allow(null, '').optional(),
   locationDescription: Joi.string().trim().max(200).allow(null, '').optional(),
 }).required();

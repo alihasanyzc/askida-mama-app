@@ -7,6 +7,9 @@ export type ClinicRecord = {
   longitude: number;
   city: string | null;
   district: string | null;
+  neighborhood: string | null;
+  address_line: string | null;
+  phone: string | null;
   location_description: string | null;
   maps_url: string;
   created_at: string | null;
@@ -27,6 +30,9 @@ export type CreateClinicInput = {
   longitude: number;
   city: string;
   district: string;
+  neighborhood?: string | null;
+  address_line?: string | null;
+  phone?: string | null;
   location_description?: string | null;
   locationDescription?: string | null;
 };

@@ -1,4 +1,5 @@
 import type { Request, Response } from 'express';
+import { validate as isUuid } from 'uuid';
 
 import { BadRequestError, UnauthorizedError } from '../../common/errors/base-error.js';
 import { successResponse } from '../../common/http/api-response.js';
@@ -15,6 +16,10 @@ function requireBowlId(request: Request) {
 
   if (!bowlId || Array.isArray(bowlId)) {
     throw new BadRequestError('Bowl id is required');
+  }
+
+  if (!isUuid(bowlId)) {
+    throw new BadRequestError('Bowl id must be a valid UUID');
   }
 
   return bowlId;

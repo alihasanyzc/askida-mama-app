@@ -20,11 +20,13 @@ const { width } = Dimensions.get('window');
 
 type MedicalDonationScreenProps = StackScreenProps<MapStackParamList, 'MedicalDonation'>;
 
-type ClinicListItem = Pick<ClinicRecord, 'name' | 'description' | 'city' | 'district'> & {
+type ClinicListItem = Pick<
+  ClinicRecord,
+  'name' | 'description' | 'city' | 'district' | 'neighborhood' | 'address_line' | 'phone'
+> & {
   id: string;
   image: string;
   address: string;
-  neighborhood: string;
 };
 
 const MedicalDonationScreen = ({ navigation }: MedicalDonationScreenProps): React.JSX.Element => {
@@ -77,6 +79,8 @@ const MedicalDonationScreen = ({ navigation }: MedicalDonationScreenProps): Reac
       city: 'İstanbul',
       district: 'Kadıköy',
       neighborhood: 'Caferağa Mahallesi',
+      address_line: 'Caferağa Mahallesi, Nailbey Sokak No: 12, Kadıköy / İstanbul',
+      phone: '0216 345 67 89',
     },
     {
       id: '2',
@@ -87,6 +91,8 @@ const MedicalDonationScreen = ({ navigation }: MedicalDonationScreenProps): Reac
       city: 'İstanbul',
       district: 'Kadıköy',
       neighborhood: 'Moda Mahallesi',
+      address_line: 'Moda Mahallesi, Ferit Tek Sokak No: 8, Kadıköy / İstanbul',
+      phone: '0216 346 20 10',
     },
     {
       id: '3',
@@ -97,6 +103,8 @@ const MedicalDonationScreen = ({ navigation }: MedicalDonationScreenProps): Reac
       city: 'İstanbul',
       district: 'Kadıköy',
       neighborhood: 'Feneryolu Mahallesi',
+      address_line: 'Feneryolu Mahallesi, Bağdat Caddesi No: 214, Kadıköy / İstanbul',
+      phone: '0216 411 55 42',
     },
     {
       id: '4',
@@ -107,6 +115,8 @@ const MedicalDonationScreen = ({ navigation }: MedicalDonationScreenProps): Reac
       city: 'İstanbul',
       district: 'Kadıköy',
       neighborhood: 'Koşuyolu Mahallesi',
+      address_line: 'Koşuyolu Mahallesi, Lambacı Sokak No: 4, Kadıköy / İstanbul',
+      phone: '0216 553 90 11',
     },
     {
       id: '5',
@@ -117,6 +127,8 @@ const MedicalDonationScreen = ({ navigation }: MedicalDonationScreenProps): Reac
       city: 'İstanbul',
       district: 'Beşiktaş',
       neighborhood: 'Ortaköy Mahallesi',
+      address_line: 'Ortaköy Mahallesi, Dereboyu Caddesi No: 33, Beşiktaş / İstanbul',
+      phone: '0212 260 73 19',
     },
     {
       id: '6',
@@ -127,6 +139,8 @@ const MedicalDonationScreen = ({ navigation }: MedicalDonationScreenProps): Reac
       city: 'İstanbul',
       district: 'Beşiktaş',
       neighborhood: 'Bebek Mahallesi',
+      address_line: 'Bebek Mahallesi, Cevdetpaşa Caddesi No: 51, Beşiktaş / İstanbul',
+      phone: '0212 287 44 06',
     },
     {
       id: '7',
@@ -137,6 +151,8 @@ const MedicalDonationScreen = ({ navigation }: MedicalDonationScreenProps): Reac
       city: 'İstanbul',
       district: 'Üsküdar',
       neighborhood: 'Altunizade Mahallesi',
+      address_line: 'Altunizade Mahallesi, Mahir İz Caddesi No: 16, Üsküdar / İstanbul',
+      phone: '0216 474 12 77',
     },
     {
       id: '8',
@@ -147,6 +163,8 @@ const MedicalDonationScreen = ({ navigation }: MedicalDonationScreenProps): Reac
       city: 'İstanbul',
       district: 'Şişli',
       neighborhood: 'Mecidiyeköy Mahallesi',
+      address_line: 'Mecidiyeköy Mahallesi, Büyükdere Caddesi No: 88, Şişli / İstanbul',
+      phone: '0212 356 88 40',
     },
   ];
 
@@ -299,6 +317,7 @@ const MedicalDonationScreen = ({ navigation }: MedicalDonationScreenProps): Reac
         >
           <Text style={styles.backIcon}>←</Text>
         </TouchableOpacity>
+        <Text style={styles.headerTitle}>Veteriner Klinikleri</Text>
         <View style={styles.placeholder} />
       </View>
 
@@ -543,6 +562,11 @@ const styles = StyleSheet.create({
   },
   backIcon: {
     fontSize: 24,
+    color: COLORS.text,
+  },
+  headerTitle: {
+    fontSize: FONT_SIZES.xl,
+    fontWeight: '800',
     color: COLORS.text,
   },
   placeholder: {

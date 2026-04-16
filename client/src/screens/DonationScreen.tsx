@@ -190,6 +190,7 @@ const DonationScreen = ({ route, navigation }: DonationScreenProps): React.JSX.E
           <TouchableOpacity style={styles.iconButton} onPress={() => navigation.goBack()} activeOpacity={0.7}>
             <Ionicons name="arrow-back" size={24} color={COLORS.secondary} />
           </TouchableOpacity>
+          <Text style={styles.headerTitle}>Mama Bağışı</Text>
           <View style={styles.headerSpacer} />
         </View>
 
@@ -238,6 +239,11 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: COLORS.white,
+  },
+  headerTitle: {
+    fontSize: FONT_SIZES.xl,
+    fontWeight: '800',
+    color: COLORS.text,
   },
   content: {
     flex: 1,

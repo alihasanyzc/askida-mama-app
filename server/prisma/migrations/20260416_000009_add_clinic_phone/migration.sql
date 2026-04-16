@@ -1,0 +1,2 @@
+ALTER TABLE public.clinics
+ADD COLUMN IF NOT EXISTS phone VARCHAR(20);

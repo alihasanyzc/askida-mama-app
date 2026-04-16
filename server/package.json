@@ -9,6 +9,7 @@
     "start": "node dist/server.js",
     "dev": "tsx watch src/server.ts",
     "admin:ensure": "tsx src/scripts/ensure-admin.ts",
+    "bowl:create": "tsx src/scripts/create-bowl.ts",
     "db:migrate": "npx prisma migrate dev",
     "db:migrate:prod": "npx prisma migrate deploy",
     "db:generate": "npx prisma generate",

@@ -13,7 +13,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
-import { COLORS } from '../constants';
+import { COLORS, SPACING } from '../constants';
 import type { StackScreenProps } from '@react-navigation/stack';
 import type { AnnouncementStackParamList } from '../types/navigation';
 

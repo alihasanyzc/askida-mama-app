@@ -9,12 +9,15 @@ import {
   Modal,
   Animated,
   TouchableWithoutFeedback,
+  ActivityIndicator,
 } from 'react-native';
 import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { COLORS, SPACING, FONT_SIZES } from '../constants';
 import BowlBottomSheet from '../components/common/BowlBottomSheet';
+import { listBowls } from '../services/bowls';
 import type { StackScreenProps } from '@react-navigation/stack';
 import type { MapStackParamList } from '../types/navigation';
 import type { BowlRecord } from '../types/domain';
@@ -27,10 +30,13 @@ type MapMarker = {
   id: string;
   latitude: number;
   longitude: number;
-  type: 'green' | 'red';
   title: string;
   status: 'full' | 'empty';
   address: string;
+  qr_code?: string;
+  status_label?: string;
+  status_color?: string;
+  location_description?: string | null;
 };
 
 const MapScreen = ({ navigation }: MapScreenProps): React.JSX.Element => {
@@ -39,6 +45,8 @@ const MapScreen = ({ navigation }: MapScreenProps): React.JSX.Element => {
   const [slideAnim] = useState(new Animated.Value(0));
   const [bowlBottomSheetVisible, setBowlBottomSheetVisible] = useState(false);
   const [selectedBowl, setSelectedBowl] = useState<(Partial<BowlRecord> & MapMarker) | null>(null);
+  const [markers, setMarkers] = useState<MapMarker[]>([]);
+  const [isLoadingBowls, setIsLoadingBowls] = useState(true);
   
   const [region, setRegion] = useState({
     latitude: 41.0082,
@@ -46,6 +54,70 @@ const MapScreen = ({ navigation }: MapScreenProps): React.JSX.Element => {
     latitudeDelta: 0.05,
     longitudeDelta: 0.05,
   });
+
+  const loadBowls = React.useCallback(async () => {
+    try {
+      setIsLoadingBowls(true);
+      const bowls = await listBowls();
+
+      const nextMarkers = bowls
+        .filter(
+          (bowl) =>
+            typeof bowl.latitude === 'number' &&
+            typeof bowl.longitude === 'number',
+        )
+        .map<MapMarker>((bowl) => ({
+          id: bowl.id,
+          latitude: bowl.latitude as number,
+          longitude: bowl.longitude as number,
+          title: 'Mama Kabı',
+          status: bowl.status === 'full' ? 'full' : 'empty',
+          address:
+            bowl.address_line?.trim() ||
+            bowl.location_note?.trim() ||
+            'Adres bilgisi mevcut değil',
+          qr_code: bowl.qr_code,
+          status_color: bowl.status_color,
+          status_label: bowl.status_label,
+          location_description: bowl.location_description ?? null,
+        }));
+
+      setMarkers(nextMarkers);
+
+      if (nextMarkers.length > 0) {
+        setRegion((currentRegion) => ({
+          ...currentRegion,
+          latitude: nextMarkers[0].latitude,
+          longitude: nextMarkers[0].longitude,
+        }));
+      }
+    } catch (error) {
+      console.error('Bowls fetch error:', error);
+    } finally {
+      setIsLoadingBowls(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    void (async () => {
+      await loadBowls();
+      if (!isMounted) {
+        return;
+      }
+    })();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [loadBowls]);
+
+  useFocusEffect(
+    React.useCallback(() => {
+      void loadBowls();
+    }, [loadBowls]),
+  );
 
   const handleDonatePress = () => {
     setModalVisible(true);
@@ -97,91 +169,6 @@ const MapScreen = ({ navigation }: MapScreenProps): React.JSX.Element => {
     }, 300);
   };
 
-  // Mock marker data - Yeşil ve kırmızı marker'lar
-  const markers: MapMarker[] = [
-    {
-      id: 'K002',
-      latitude: 41.0082,
-      longitude: 28.9784,
-      type: 'green', // Yeşil marker
-      title: 'Mama Kabı',
-      status: 'full',
-      address: 'Yunus Emre Mahallesi, Beyaz Cennet Sokak No:45, Pamukkale, Denizli',
-    },
-    {
-      id: 'K003',
-      latitude: 41.0100,
-      longitude: 28.9800,
-      type: 'green',
-      title: 'Mama Kabı',
-      status: 'full',
-      address: 'Kadıköy, Rasimpaşa Mahallesi, Söğütlüçeşme Caddesi No:42, İstanbul',
-    },
-    {
-      id: 'K004',
-      latitude: 41.0060,
-      longitude: 28.9760,
-      type: 'green',
-      title: 'Mama Kabı',
-      status: 'full',
-      address: 'Kadıköy, Fenerbahçe Mahallesi, Fenerbahçe Parkı İçi, İstanbul',
-    },
-    {
-      id: 'K005',
-      latitude: 41.0120,
-      longitude: 28.9820,
-      type: 'green',
-      title: 'Mama Kabı',
-      status: 'full',
-      address: 'Üsküdar, Selimiye Mahallesi, İskele Meydanı No:8, İstanbul',
-    },
-    {
-      id: 'K006',
-      latitude: 41.0090,
-      longitude: 28.9790,
-      type: 'green',
-      title: 'Mama Kabı',
-      status: 'full',
-      address: 'Kadıköy, Göztepe Mahallesi, Bağdat Caddesi No:125, İstanbul',
-    },
-    {
-      id: 'K007',
-      latitude: 41.0070,
-      longitude: 28.9770,
-      type: 'red', // Kırmızı marker
-      title: 'Mama Kabı',
-      status: 'empty',
-      address: 'Kadıköy, Caddebostan Mahallesi, Bağdat Caddesi No:301, İstanbul',
-    },
-    {
-      id: 'K008',
-      latitude: 41.0110,
-      longitude: 28.9810,
-      type: 'red',
-      title: 'Mama Kabı',
-      status: 'empty',
-      address: 'Kadıköy, Zühtüpaşa Mahallesi, Dr. Esat Işık Caddesi No:18, İstanbul',
-    },
-    {
-      id: 'K009',
-      latitude: 41.0050,
-      longitude: 28.9750,
-      type: 'red',
-      title: 'Mama Kabı',
-      status: 'empty',
-      address: 'Kadıköy, Feneryolu Mahallesi, Bağdat Caddesi No:401, İstanbul',
-    },
-    {
-      id: 'K010',
-      latitude: 41.0130,
-      longitude: 28.9830,
-      type: 'red',
-      title: 'Mama Kabı',
-      status: 'empty',
-      address: 'Üsküdar, Kuzguncuk Mahallesi, İcadiye Caddesi No:25, İstanbul',
-    },
-  ];
-
   const modalTranslateY = slideAnim.interpolate({
     inputRange: [0, 1],
     outputRange: [600, 0],
@@ -227,6 +214,13 @@ const MapScreen = ({ navigation }: MapScreenProps): React.JSX.Element => {
         ))}
       </MapView>
 
+      {isLoadingBowls ? (
+        <View style={[styles.loadingOverlay, { top: insets.top + SPACING.xl }]}>
+          <ActivityIndicator size="small" color={COLORS.primary} />
+          <Text style={styles.loadingText}>Mama kaplari yukleniyor...</Text>
+        </View>
+      ) : null}
+
       {/* QR Code Button - Top Right */}
       <TouchableOpacity
         style={[styles.qrButton, { top: insets.top + SPACING.md }]}
@@ -234,6 +228,14 @@ const MapScreen = ({ navigation }: MapScreenProps): React.JSX.Element => {
         onPress={handleQRScan}
       >
         <Ionicons name="qr-code-outline" size={20} color={COLORS.white} />
+      </TouchableOpacity>
+
+      <TouchableOpacity
+        style={[styles.refreshButton, { top: insets.top + SPACING.md }]}
+        activeOpacity={0.7}
+        onPress={() => void loadBowls()}
+      >
+        <Ionicons name="refresh" size={20} color={COLORS.white} />
       </TouchableOpacity>
 
       {/* Bağış Yap Button - Bottom */}
@@ -367,6 +369,37 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.25,
     shadowRadius: 4,
     elevation: 5,
+  },
+  refreshButton: {
+    position: 'absolute',
+    left: SPACING.md,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: COLORS.secondary,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 5,
+  },
+  loadingOverlay: {
+    position: 'absolute',
+    alignSelf: 'center',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.sm,
+    backgroundColor: 'rgba(255,255,255,0.96)',
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.sm,
+    borderRadius: 999,
+  },
+  loadingText: {
+    fontSize: FONT_SIZES.sm,
+    fontWeight: '600',
+    color: COLORS.secondary,
   },
   bottomContainer: {
     position: 'absolute',

@@ -1,103 +1,137 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
-  View,
-  Text,
+  ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
   StyleSheet,
-  Dimensions,
-  Animated,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { AxiosError } from 'axios';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { COLORS, SPACING, FONT_SIZES } from '../constants';
 import type { StackScreenProps } from '@react-navigation/stack';
-import type { MapStackParamList } from '../types/navigation';
 
-const { width, height } = Dimensions.get('window');
+import { COLORS, FONT_SIZES, SPACING } from '../constants';
+import { getBowlDetailByQrCode } from '../services/bowls';
+import type { MapStackParamList } from '../types/navigation';
 
 type QRScannerScreenProps = StackScreenProps<MapStackParamList, 'QRScanner'>;
 
+function normalizeQrCode(value: string) {
+  return value.trim();
+}
+
 const QRScannerScreen = ({ navigation }: QRScannerScreenProps): React.JSX.Element => {
   const insets = useSafeAreaInsets();
-  const scanLineAnim = useRef(new Animated.Value(0)).current;
+  const [qrCode, setQrCode] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
 
-  useEffect(() => {
-    // Scanning animation
-    const scanAnimation = Animated.loop(
-      Animated.sequence([
-        Animated.timing(scanLineAnim, {
-          toValue: 1,
-          duration: 2000,
-          useNativeDriver: true,
-        }),
-        Animated.timing(scanLineAnim, {
-          toValue: 0,
-          duration: 2000,
-          useNativeDriver: true,
-        }),
-      ])
-    );
-    scanAnimation.start();
+  const isSubmitDisabled = useMemo(
+    () => isSubmitting || normalizeQrCode(qrCode).length === 0,
+    [isSubmitting, qrCode],
+  );
 
-    // QR kod okutma simülasyonu - 3 saniye sonra detay sayfasına git
-    const timer = setTimeout(() => {
-      const mockBowlData = {
-        id: '1',
-        status: 'full',
-        location_note: 'Yunus Emre Mahallesi, Kale Sokak No:12',
-        location_description: 'Pamukkale, Denizli',
-      };
-      navigation.replace('BowlDetail', { bowl: mockBowlData });
-    }, 3000);
+  const handleSubmit = async () => {
+    const normalizedQrCode = normalizeQrCode(qrCode);
 
-    return () => {
-      scanAnimation.stop();
-      clearTimeout(timer);
-    };
-  }, [navigation, scanLineAnim]);
+    if (!normalizedQrCode) {
+      setErrorMessage('QR kod bilgisini girin.');
+      return;
+    }
 
-  const scanLineTranslateY = scanLineAnim.interpolate({
-    inputRange: [0, 1],
-    outputRange: [0, 250],
-  });
+    try {
+      setIsSubmitting(true);
+      setErrorMessage('');
+
+      const bowl = await getBowlDetailByQrCode(normalizedQrCode);
+
+      navigation.replace('BowlDetail', { bowl });
+    } catch (error) {
+      const status =
+        error instanceof AxiosError ? error.response?.status : undefined;
+
+      if (status === 404) {
+        setErrorMessage('Bu QR koda ait mama kabi bulunamadi.');
+      } else {
+        setErrorMessage('QR kod verisi alinamadi. Lutfen tekrar deneyin.');
+      }
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
-      {/* Header */}
       <View style={styles.header}>
         <Text style={styles.headerTitle}>QR Kod Okut</Text>
       </View>
 
-      {/* Scanner Area */}
-      <View style={styles.scannerContainer}>
-        <Text style={styles.instructionText}>
-          QR kodu kare içine yerleştirin
-        </Text>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        style={styles.flex}
+      >
+        <View style={styles.content}>
+          <View style={styles.scannerCard}>
+            <View style={styles.scannerFrame}>
+              <View style={[styles.corner, styles.cornerTopLeft]} />
+              <View style={[styles.corner, styles.cornerTopRight]} />
+              <View style={[styles.corner, styles.cornerBottomLeft]} />
+              <View style={[styles.corner, styles.cornerBottomRight]} />
 
-        {/* Scanner Frame */}
-        <View style={styles.scannerFrame}>
-          {/* Corner decorations */}
-          <View style={[styles.corner, styles.cornerTopLeft]} />
-          <View style={[styles.corner, styles.cornerTopRight]} />
-          <View style={[styles.corner, styles.cornerBottomLeft]} />
-          <View style={[styles.corner, styles.cornerBottomRight]} />
+              <View style={styles.qrIconContainer}>
+                <MaterialCommunityIcons
+                  name="qrcode-scan"
+                  size={56}
+                  color={COLORS.primary}
+                />
+              </View>
+            </View>
 
-          {/* Animated scan line */}
-          <Animated.View
-            style={[
-              styles.scanLine,
-              {
-                transform: [{ translateY: scanLineTranslateY }],
-              },
-            ]}
-          />
+            <Text style={styles.instructionText}>
+              QR kod verisini girin, ekran bowl bilgisini backend&apos;den acsin.
+            </Text>
+          </View>
 
-          {/* QR Icon in center */}
-          <View style={styles.qrIconContainer}>
-            <Text style={styles.qrIconText}>📱</Text>
+          <View style={styles.formCard}>
+            <Text style={styles.label}>QR Kod</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="Orn: BOWL-QR-0001"
+              placeholderTextColor="#8C8C8C"
+              value={qrCode}
+              onChangeText={(value) => {
+                setQrCode(value);
+                if (errorMessage) {
+                  setErrorMessage('');
+                }
+              }}
+              autoCapitalize="characters"
+              autoCorrect={false}
+              returnKeyType="done"
+              onSubmitEditing={handleSubmit}
+            />
+
+            {errorMessage ? <Text style={styles.errorText}>{errorMessage}</Text> : null}
+
+            <TouchableOpacity
+              style={[styles.submitButton, isSubmitDisabled && styles.submitButtonDisabled]}
+              onPress={handleSubmit}
+              disabled={isSubmitDisabled}
+              activeOpacity={0.85}
+            >
+              {isSubmitting ? (
+                <ActivityIndicator size="small" color={COLORS.white} />
+              ) : (
+                <Text style={styles.submitButtonText}>Devam Et</Text>
+              )}
+            </TouchableOpacity>
           </View>
         </View>
-
-        <Text style={styles.scanningText}>Taranıyor...</Text>
-      </View>
+      </KeyboardAvoidingView>
     </View>
   );
 };
@@ -105,7 +139,10 @@ const QRScannerScreen = ({ navigation }: QRScannerScreenProps): React.JSX.Elemen
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.black,
+    backgroundColor: COLORS.white,
+  },
+  flex: {
+    flex: 1,
   },
   header: {
     paddingVertical: SPACING.lg,
@@ -114,31 +151,33 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: FONT_SIZES.xl,
     fontWeight: '700',
-    color: COLORS.white,
+    color: COLORS.secondary,
   },
-  scannerContainer: {
+  content: {
     flex: 1,
+    paddingHorizontal: SPACING.lg,
+    paddingBottom: SPACING.xl,
     justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: SPACING.xl,
   },
-  instructionText: {
-    fontSize: FONT_SIZES.md,
-    color: COLORS.white,
-    marginBottom: SPACING.xl,
-    textAlign: 'center',
+  scannerCard: {
+    borderRadius: 24,
+    backgroundColor: COLORS.secondary,
+    padding: SPACING.lg,
+    marginBottom: SPACING.lg,
   },
   scannerFrame: {
-    width: 280,
-    height: 280,
+    width: '100%',
+    aspectRatio: 1,
+    maxHeight: 280,
+    alignSelf: 'center',
     justifyContent: 'center',
     alignItems: 'center',
     position: 'relative',
   },
   corner: {
     position: 'absolute',
-    width: 30,
-    height: 30,
+    width: 32,
+    height: 32,
     borderColor: COLORS.primary,
   },
   cornerTopLeft: {
@@ -165,34 +204,64 @@ const styles = StyleSheet.create({
     borderBottomWidth: 4,
     borderRightWidth: 4,
   },
-  scanLine: {
-    position: 'absolute',
-    top: 15,
-    left: 15,
-    right: 15,
-    height: 3,
-    backgroundColor: COLORS.primary,
-    shadowColor: COLORS.primary,
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.8,
-    shadowRadius: 8,
-  },
   qrIconContainer: {
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-    width: 80,
-    height: 80,
-    borderRadius: 16,
-    justifyContent: 'center',
+    width: 96,
+    height: 96,
+    borderRadius: 24,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
     alignItems: 'center',
+    justifyContent: 'center',
   },
-  qrIconText: {
-    fontSize: 48,
+  instructionText: {
+    marginTop: SPACING.lg,
+    fontSize: FONT_SIZES.md,
+    lineHeight: 21,
+    color: 'rgba(255, 255, 255, 0.72)',
+    textAlign: 'center',
   },
-  scanningText: {
+  formCard: {
+    borderRadius: 20,
+    backgroundColor: '#FFF8F1',
+    padding: SPACING.lg,
+    borderWidth: 1,
+    borderColor: '#F0E1CF',
+  },
+  label: {
+    fontSize: FONT_SIZES.md,
+    fontWeight: '700',
+    color: COLORS.secondary,
+    marginBottom: SPACING.sm,
+  },
+  input: {
+    minHeight: 54,
+    borderRadius: 14,
+    backgroundColor: COLORS.white,
+    borderWidth: 1,
+    borderColor: '#E8DCCF',
+    paddingHorizontal: SPACING.md,
+    fontSize: FONT_SIZES.md,
+    color: COLORS.secondary,
+  },
+  errorText: {
+    marginTop: SPACING.sm,
+    fontSize: FONT_SIZES.sm,
+    color: COLORS.danger,
+  },
+  submitButton: {
+    minHeight: 54,
+    marginTop: SPACING.md,
+    borderRadius: 14,
+    backgroundColor: COLORS.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  submitButtonDisabled: {
+    opacity: 0.6,
+  },
+  submitButtonText: {
     fontSize: FONT_SIZES.lg,
-    fontWeight: '600',
-    color: COLORS.primary,
-    marginTop: SPACING.xl,
+    fontWeight: '700',
+    color: COLORS.white,
   },
 });
 

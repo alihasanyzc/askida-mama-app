@@ -24,6 +24,9 @@ function mapClinic(record: {
   longitude: Prisma.Decimal;
   city: string | null;
   district: string | null;
+  neighborhood: string | null;
+  address_line: string | null;
+  phone: string | null;
   location_description: string | null;
   created_at: Date | null;
   updated_at: Date | null;
@@ -40,6 +43,9 @@ function mapClinic(record: {
     longitude,
     city: record.city,
     district: record.district,
+    neighborhood: record.neighborhood,
+    address_line: record.address_line,
+    phone: record.phone,
     location_description: record.location_description,
     maps_url: buildMapsUrl(latitude, longitude),
     created_at: record.created_at?.toISOString() ?? null,
@@ -123,6 +129,9 @@ export const clinicsRepository = {
         longitude: true,
         city: true,
         district: true,
+        neighborhood: true,
+        address_line: true,
+        phone: true,
         location_description: true,
         created_at: true,
         updated_at: true,
@@ -147,6 +156,9 @@ export const clinicsRepository = {
         longitude: true,
         city: true,
         district: true,
+        neighborhood: true,
+        address_line: true,
+        phone: true,
         location_description: true,
         created_at: true,
         updated_at: true,
@@ -173,6 +185,24 @@ export const clinicsRepository = {
         longitude: payload.longitude,
         city: payload.city,
         district: payload.district,
+        neighborhood:
+          payload.neighborhood === undefined
+            ? null
+            : payload.neighborhood === ''
+            ? null
+            : (payload.neighborhood ?? null),
+        address_line:
+          payload.address_line === undefined
+            ? null
+            : payload.address_line === ''
+            ? null
+            : (payload.address_line ?? null),
+        phone:
+          payload.phone === undefined
+            ? null
+            : payload.phone === ''
+            ? null
+            : (payload.phone ?? null),
         location_description:
           payload.location_description !== undefined
             ? payload.location_description === ''
@@ -192,6 +222,9 @@ export const clinicsRepository = {
         longitude: true,
         city: true,
         district: true,
+        neighborhood: true,
+        address_line: true,
+        phone: true,
         location_description: true,
         created_at: true,
         updated_at: true,

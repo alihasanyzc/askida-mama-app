@@ -14,6 +14,7 @@ import { COLORS, SPACING, FONT_SIZES } from '../constants';
 import type { StackScreenProps } from '@react-navigation/stack';
 import type { MapStackParamList } from '../types/navigation';
 import type { ClinicRecord } from '../types/domain';
+import { formatPhone } from '../utils/formatters';
 
 const { width } = Dimensions.get('window');
 
@@ -60,6 +61,9 @@ const ClinicDetailScreen = ({ route, navigation }: ClinicDetailScreenProps): Rea
   };
 
   const isDonationValid = selectedAmount !== null || (customAmount && parseFloat(customAmount) > 0);
+  const addressText =
+    clinic.address_line?.trim() ||
+    [clinic.neighborhood, clinic.district, clinic.city].filter(Boolean).join(', ');
 
   return (
     <View style={styles.container}>
@@ -94,6 +98,26 @@ const ClinicDetailScreen = ({ route, navigation }: ClinicDetailScreenProps): Rea
           <Text style={styles.clinicName}>{clinic.name ?? 'Klinik'}</Text>
           <Text style={styles.clinicDescription}>{clinic.description ?? ''}</Text>
         </View>
+
+        {addressText ? (
+          <View style={styles.contactSection}>
+            <Text style={styles.sectionTitle}>Adres</Text>
+            <View style={styles.contactRow}>
+              <Text style={styles.contactIcon}>📍</Text>
+              <Text style={styles.contactText}>{addressText}</Text>
+            </View>
+          </View>
+        ) : null}
+
+        {clinic.phone ? (
+          <View style={styles.contactSection}>
+            <Text style={styles.sectionTitle}>İletişim</Text>
+            <View style={styles.contactRow}>
+              <Text style={styles.contactIcon}>📞</Text>
+              <Text style={styles.contactText}>{formatPhone(clinic.phone)}</Text>
+            </View>
+          </View>
+        ) : null}
 
         {/* Donation Amount Selection */}
         <View style={styles.section}>
@@ -163,21 +187,8 @@ const ClinicDetailScreen = ({ route, navigation }: ClinicDetailScreenProps): Rea
           </View>
         </View>
 
-        {/* Donation Usage Area */}
-        <View style={styles.usageSection}>
-          <View style={styles.usageIcon}>
-            <Text style={styles.usageIconText}>❤️</Text>
-          </View>
-          <View style={styles.usageContent}>
-            <Text style={styles.usageTitle}>Bağışınızın Kullanım Alanı</Text>
-            <Text style={styles.usageText}>
-              Bağışınız sokak hayvanlarının ameliyat, tedavi ve bakım masraflarında kullanılacaktır.
-            </Text>
-          </View>
-        </View>
-
         {/* Donate Button - end of scroll */}
-        <View style={[styles.donateButtonWrapper, { paddingBottom: insets.bottom + SPACING.xl }]}>
+        <View style={[styles.donateButtonWrapper, { paddingBottom: Math.max(insets.bottom, SPACING.xs) }]}>
           <TouchableOpacity
             style={[
               styles.donateButton,
@@ -227,7 +238,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
-    paddingBottom: SPACING.xl,
+    paddingBottom: 0,
   },
   imageContainer: {
     paddingHorizontal: SPACING.md,
@@ -254,6 +265,29 @@ const styles = StyleSheet.create({
     fontSize: FONT_SIZES.md,
     color: COLORS.textSecondary,
     lineHeight: 22,
+  },
+  contactSection: {
+    paddingHorizontal: SPACING.lg,
+    marginBottom: SPACING.md,
+  },
+  contactRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: SPACING.sm,
+    backgroundColor: '#FFF8F1',
+    borderRadius: 14,
+    padding: SPACING.md,
+    marginBottom: SPACING.sm,
+  },
+  contactIcon: {
+    fontSize: FONT_SIZES.lg,
+  },
+  contactText: {
+    flex: 1,
+    fontSize: FONT_SIZES.md,
+    color: COLORS.text,
+    lineHeight: 22,
+    fontWeight: '500',
   },
   section: {
     paddingHorizontal: SPACING.lg,
@@ -339,63 +373,21 @@ const styles = StyleSheet.create({
     color: COLORS.textSecondary,
     marginRight: SPACING.xs,
   },
-  usageSection: {
-    flexDirection: 'row',
-    backgroundColor: COLORS.primary,
-    borderRadius: 16,
-    padding: SPACING.lg,
-    marginHorizontal: SPACING.lg,
-    alignItems: 'center',
-  },
-  usageIcon: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: COLORS.white,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: SPACING.md,
-  },
-  usageIconText: {
-    fontSize: 28,
-  },
-  usageContent: {
-    flex: 1,
-  },
-  usageTitle: {
-    fontSize: FONT_SIZES.lg,
-    fontWeight: '700',
-    color: COLORS.white,
-    marginBottom: SPACING.xs,
-  },
-  usageText: {
-    fontSize: FONT_SIZES.sm,
-    color: COLORS.white,
-    lineHeight: 20,
-    opacity: 0.9,
-  },
   donateButtonWrapper: {
     paddingHorizontal: SPACING.lg,
-    paddingTop: SPACING.xl,
+    paddingTop: SPACING.sm,
   },
   donateButton: {
     backgroundColor: COLORS.primary,
-    borderRadius: 16,
-    paddingVertical: SPACING.lg,
+    borderRadius: 10,
+    paddingVertical: SPACING.md,
     alignItems: 'center',
-    shadowColor: COLORS.primary,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 8,
-    elevation: 5,
   },
   donateButtonDisabled: {
     backgroundColor: '#E0E0E0',
-    shadowOpacity: 0,
-    elevation: 0,
   },
   donateButtonText: {
-    fontSize: FONT_SIZES.lg,
+    fontSize: FONT_SIZES.md,
     fontWeight: '700',
     color: COLORS.white,
   },

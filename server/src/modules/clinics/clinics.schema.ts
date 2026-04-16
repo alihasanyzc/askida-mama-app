@@ -13,6 +13,9 @@ export const createClinicSchema = Joi.object<CreateClinicInput>({
   longitude: Joi.number().min(-180).max(180).required(),
   city: Joi.string().trim().max(50).required(),
   district: Joi.string().trim().max(50).required(),
+  neighborhood: Joi.string().trim().max(80).allow(null, '').optional(),
+  address_line: Joi.string().trim().max(200).allow(null, '').optional(),
+  phone: Joi.string().trim().max(20).allow(null, '').optional(),
   location_description: Joi.string().trim().max(200).allow(null, '').optional(),
   locationDescription: Joi.string().trim().max(200).allow(null, '').optional(),
 }).required();

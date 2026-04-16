@@ -73,6 +73,7 @@ function mapBowl(record: {
   status: string;
   latitude: { toNumber(): number };
   longitude: { toNumber(): number };
+  address_line: string | null;
   location_note: string | null;
   created_at: Date | null;
   updated_at: Date | null;
@@ -88,7 +89,8 @@ function mapBowl(record: {
     status_label: mapStatusLabel(record.status),
     latitude,
     longitude,
-    location_note: record.location_note,
+    address_line: record.address_line,
+    location_note: record.address_line ?? record.location_note,
     location_description: record.location_note,
     maps_url: buildMapsUrl(latitude, longitude),
     created_at: record.created_at?.toISOString() ?? null,
@@ -161,6 +163,7 @@ export const bowlsRepository = {
         status: true,
         latitude: true,
         longitude: true,
+        address_line: true,
         location_note: true,
         created_at: true,
         updated_at: true,
@@ -184,6 +187,7 @@ export const bowlsRepository = {
         status: true,
         latitude: true,
         longitude: true,
+        address_line: true,
         location_note: true,
         created_at: true,
         updated_at: true,
@@ -211,6 +215,7 @@ export const bowlsRepository = {
         status: true,
         latitude: true,
         longitude: true,
+        address_line: true,
         location_note: true,
         created_at: true,
         updated_at: true,
@@ -241,6 +246,7 @@ export const bowlsRepository = {
         status: true,
         latitude: true,
         longitude: true,
+        address_line: true,
         location_note: true,
       },
     });
@@ -270,6 +276,7 @@ export const bowlsRepository = {
           new_status: nextStatus,
           old_latitude: existing.latitude,
           old_longitude: existing.longitude,
+          new_address_line: existing.address_line,
           new_latitude: existing.latitude,
           new_longitude: existing.longitude,
           new_location_note: existing.location_note,
@@ -295,6 +302,8 @@ export const bowlsRepository = {
         status: true,
         latitude: true,
         longitude: true,
+        address_line: true,
+        location_note: true,
       },
     });
 
@@ -310,14 +319,22 @@ export const bowlsRepository = {
         data: {
           latitude: payload.latitude,
           longitude: payload.longitude,
+          address_line:
+            payload.address_line !== undefined
+              ? payload.address_line === ''
+                ? null
+                : (payload.address_line ?? null)
+              : undefined,
           location_note:
-            payload.location_note !== undefined
+            payload.locationDescription !== undefined
+              ? payload.locationDescription === ''
+                ? null
+                : (payload.locationDescription ?? null)
+              : payload.location_note !== undefined
               ? payload.location_note === ''
                 ? null
                 : (payload.location_note ?? null)
-              : payload.locationDescription === ''
-              ? null
-              : (payload.locationDescription ?? null),
+              : undefined,
           last_updated_by: userId,
         },
       });
@@ -332,14 +349,22 @@ export const bowlsRepository = {
           old_longitude: existing.longitude,
           new_latitude: payload.latitude,
           new_longitude: payload.longitude,
+          new_address_line:
+            payload.address_line !== undefined
+              ? payload.address_line === ''
+                ? null
+                : (payload.address_line ?? null)
+              : existing.address_line,
           new_location_note:
-            payload.location_note !== undefined
+            payload.locationDescription !== undefined
+              ? payload.locationDescription === ''
+                ? null
+                : (payload.locationDescription ?? null)
+              : payload.location_note !== undefined
               ? payload.location_note === ''
                 ? null
                 : (payload.location_note ?? null)
-              : payload.locationDescription === ''
-              ? null
-              : (payload.locationDescription ?? null),
+              : existing.location_note,
           source: 'manual',
         },
       });

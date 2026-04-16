@@ -35,6 +35,7 @@ import PrivacyScreen from '../screens/PrivacyScreen';
 import AboutScreen from '../screens/AboutScreen';
 import HelpScreen from '../screens/HelpScreen';
 import PaymentScreen from '../screens/PaymentScreen';
+import AddPaymentMethodScreen from '../screens/AddPaymentMethodScreen';
 import ClinicDetailScreen from '../screens/ClinicDetailScreen';
 import EventDetailScreen from '../screens/EventDetailScreen';
 import EventsListScreen from '../screens/EventsListScreen';
@@ -111,6 +112,7 @@ const MapStack = (): React.JSX.Element => {
       <MapStackNavigator.Screen name="BowlDetail" component={BowlDetailScreen} />
       <MapStackNavigator.Screen name="EditAddress" component={EditAddressScreen} />
       <MapStackNavigator.Screen name="Payment" component={PaymentScreen} />
+      <MapStackNavigator.Screen name="AddPaymentMethod" component={AddPaymentMethodScreen} />
       <MapStackNavigator.Screen name="ClinicDetail" component={ClinicDetailScreen} />
     </MapStackNavigator.Navigator>
   );
