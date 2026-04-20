@@ -17,7 +17,9 @@ export const getChatStatus = asyncHandler(async (_request: Request, response: Re
 });
 
 export const respondChat = asyncHandler(async (request: Request, response: Response) => {
-  const data = await chatService.respond(request.validatedBody as ChatRespondInput);
+  const data = await chatService.respond(request.validatedBody as ChatRespondInput, {
+    clientId: request.user?.id ?? request.ip ?? 'anonymous',
+  });
 
   response.status(200).json(
     successResponse({

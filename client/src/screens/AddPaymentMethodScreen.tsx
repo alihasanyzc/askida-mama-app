@@ -229,6 +229,7 @@ const AddPaymentMethodScreen = ({
           onPress: () => navigation.navigate('Payment', {
             amount: route.params?.amount,
             selectedPaymentMethodId: createdCard.id,
+            bowlId: route.params?.bowlId,
           }),
         },
       ]);

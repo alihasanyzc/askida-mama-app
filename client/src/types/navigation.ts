@@ -34,8 +34,8 @@ export type MapStackParamList = {
   QRScanner: undefined;
   BowlDetail: { bowl?: Partial<BowlRecord> } | undefined;
   EditAddress: { bowl?: Partial<BowlRecord> } | undefined;
-  Payment: { amount?: number; selectedPaymentMethodId?: string } | undefined;
-  AddPaymentMethod: { amount?: number } | undefined;
+  Payment: { amount?: number; selectedPaymentMethodId?: string; bowlId?: string } | undefined;
+  AddPaymentMethod: { amount?: number; bowlId?: string } | undefined;
   ClinicDetail: { clinic?: Partial<ClinicRecord> } | undefined;
 };
 

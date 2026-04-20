@@ -1,6 +1,24 @@
-import 'dotenv/config';
+import { existsSync } from 'node:fs';
+import { dirname, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+import dotenv from 'dotenv';
 
 import Joi from 'joi';
+
+const currentFilePath = fileURLToPath(import.meta.url);
+const currentDirPath = dirname(currentFilePath);
+const serverRootPath = resolve(currentDirPath, '..', '..');
+const serverEnvPath = resolve(serverRootPath, '.env');
+const repoRootEnvPath = resolve(serverRootPath, '..', '.env');
+
+if (existsSync(repoRootEnvPath)) {
+  dotenv.config({ path: repoRootEnvPath });
+}
+
+if (existsSync(serverEnvPath)) {
+  dotenv.config({ path: serverEnvPath });
+}
 
 type EnvShape = {
   NODE_ENV: 'development' | 'test' | 'production';

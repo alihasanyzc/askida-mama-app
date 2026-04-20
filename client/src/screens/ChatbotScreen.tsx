@@ -12,24 +12,9 @@ import {
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { COLORS, SPACING, FONT_SIZES } from '../constants';
-import api from '../services/api';
+import { sendChatMessage } from '../services/chat';
 
 const CHAT_BG = '#F8F8F8';
-
-// Hızlı yanıt butonları
-const QUICK_REPLIES = [
-  { id: 1, label: '🐱 Kedi', value: 'kedi' },
-  { id: 2, label: '🐕 Köpek', value: 'köpek' },
-];
-
-const SYMPTOM_REPLIES = [
-  { id: 3, label: '🤢 Kusma', value: 'kusma' },
-  { id: 4, label: '💩 İshal', value: 'ishal' },
-  { id: 5, label: '🌡️ Ateş', value: 'ateş' },
-  { id: 6, label: '😿 Kaşıntı', value: 'kaşıntı' },
-  { id: 7, label: '🪮 Tüy Dökme', value: 'tüy dökme' },
-  { id: 8, label: '🍽️ İştahsızlık', value: 'iştahsızlık' },
-];
 
 type ChatMessage = {
   id: string;
@@ -40,9 +25,6 @@ type ChatMessage = {
 
 type ChatbotResponse = {
   reply?: string;
-  animal_type?: string | null;
-  require_animal_type_selection?: boolean;
-  quick_replies?: string[];
 };
 
 const ChatbotScreen = (): React.JSX.Element => {
@@ -50,21 +32,12 @@ const ChatbotScreen = (): React.JSX.Element => {
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
       id: '1',
-      text: 'Merhaba! Ben PawAI, hayvan dostlarımıza yardım asistanınızım.\n\nSize nasıl yardımcı olabilirim?',
-      isBot: true,
-      time: new Date().toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' }),
-    },
-    {
-      id: '2',
-      text: 'Öncelikle, hayvanın türünü seçer misin?',
+      text: 'Merhaba! Ben PawAI.\n\nHayvanlarla ilgili sorularını yazabilirsin.',
       isBot: true,
       time: new Date().toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' }),
     },
   ]);
   const [inputText, setInputText] = useState('');
-  const [animalType, setAnimalType] = useState<string | null>(null);
-  const [quickReplies, setQuickReplies] = useState(QUICK_REPLIES);
-  const [requireAnimalTypeSelection, setRequireAnimalTypeSelection] = useState(true);
   const [isSending, setIsSending] = useState(false);
   const scrollViewRef = useRef<ScrollView | null>(null);
 
@@ -86,39 +59,14 @@ const ChatbotScreen = (): React.JSX.Element => {
     const history = existingMessages
       .slice(-10)
       .map((message) => ({
-        role: message.isBot ? 'assistant' : 'user',
+        role: (message.isBot ? 'assistant' : 'user') as 'assistant' | 'user',
         content: message.text,
       }));
 
-    return [...history, { role: 'user', content: nextUserText }];
+    return [...history, { role: 'user' as const, content: nextUserText }];
   };
 
-  const syncQuickReplies = (responseData: ChatbotResponse | undefined, nextAnimalType: string | null) => {
-    const shouldRequireAnimalType = Boolean(responseData?.require_animal_type_selection);
-    const backendQuickReplies = responseData?.quick_replies ?? [];
-
-    setRequireAnimalTypeSelection(shouldRequireAnimalType);
-
-    if (shouldRequireAnimalType && backendQuickReplies.length > 0) {
-      setQuickReplies(
-        backendQuickReplies.map((reply, index) => ({
-          id: index + 1,
-          label: reply === 'kedi' ? '🐱 Kedi' : reply === 'köpek' ? '🐕 Köpek' : reply,
-          value: reply,
-        })),
-      );
-      return;
-    }
-
-    if (nextAnimalType) {
-      setQuickReplies(SYMPTOM_REPLIES);
-      return;
-    }
-
-    setQuickReplies(QUICK_REPLIES);
-  };
-
-  const sendMessage = async (text: string, forcedAnimalType: string | null = null) => {
+  const sendMessage = async (text: string) => {
     if (!text.trim() || isSending) {
       return;
     }
@@ -132,25 +80,18 @@ const ChatbotScreen = (): React.JSX.Element => {
     Keyboard.dismiss();
 
     try {
-      const response = await api.post('/chat/respond', {
+      const response = await sendChatMessage({
         message: text,
-        animal_type: forcedAnimalType ?? animalType,
         messages: buildChatHistory(messages, text),
       });
 
-      const data = response?.data;
-      const nextAnimalType =
-        data?.require_animal_type_selection
-          ? null
-          : (data?.animal_type ?? forcedAnimalType ?? animalType);
+      const data = response as ChatbotResponse | undefined;
 
       const botMessage = createMessage(
         data?.reply ?? 'Bir hata oluştu. Lütfen tekrar deneyin.',
         true,
       );
 
-      setAnimalType(nextAnimalType);
-      syncQuickReplies(data, nextAnimalType);
       setMessages((prev) => [...prev, botMessage]);
     } catch (_error) {
       const botMessage = createMessage(
@@ -165,13 +106,6 @@ const ChatbotScreen = (): React.JSX.Element => {
 
   const handleSend = () => {
     void sendMessage(inputText);
-  };
-
-  const handleQuickReply = (value: string) => {
-    const forcedAnimalType =
-      value === 'kedi' || value === 'köpek' ? value : null;
-
-    void sendMessage(value, forcedAnimalType);
   };
 
   return (
@@ -232,36 +166,6 @@ const ChatbotScreen = (): React.JSX.Element => {
             </View>
           ))}
 
-          {/* Hızlı Yanıtlar */}
-          {requireAnimalTypeSelection && (
-            <View style={styles.quickRepliesContainer}>
-              {quickReplies.map((reply) => (
-                <TouchableOpacity
-                  key={reply.id}
-                  style={styles.quickReplyButton}
-                  onPress={() => handleQuickReply(reply.value)}
-                  disabled={isSending}
-                >
-                  <Text style={styles.quickReplyText}>{reply.label}</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          )}
-
-          {!requireAnimalTypeSelection && animalType && (
-            <View style={styles.quickRepliesContainer}>
-              {quickReplies.map((reply) => (
-                <TouchableOpacity
-                  key={reply.id}
-                  style={styles.quickReplyButton}
-                  onPress={() => handleQuickReply(reply.value)}
-                  disabled={isSending}
-                >
-                  <Text style={styles.quickReplyText}>{reply.label}</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          )}
         </ScrollView>
 
         {/* Input Area + Disclaimer (sabit altta) */}
@@ -271,7 +175,7 @@ const ChatbotScreen = (): React.JSX.Element => {
               style={styles.input}
               value={inputText}
               onChangeText={setInputText}
-              placeholder="Belirtileri anlat... (örn: iştahsız, kusma)"
+              placeholder="Mesajını yaz..."
               placeholderTextColor="#999"
               multiline
               maxLength={200}
@@ -288,7 +192,7 @@ const ChatbotScreen = (): React.JSX.Element => {
             </TouchableOpacity>
           </View>
           <Text style={styles.disclaimer}>
-            PawAI hata yapabilir. Önemli bilgileri kontrol edin.
+            PawAI yalnızca hayvanlarla ilgili konularda yanıt verir. Önemli bilgileri kontrol edin.
           </Text>
         </View>
       </KeyboardAvoidingView>
@@ -389,25 +293,6 @@ const styles = StyleSheet.create({
   },
   userTime: {
     color: '#999',
-  },
-  quickRepliesContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-    marginTop: 8,
-  },
-  quickReplyButton: {
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1.5,
-    borderColor: '#FF8C42',
-    borderRadius: 20,
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-  },
-  quickReplyText: {
-    fontSize: 14,
-    color: '#FF8C42',
-    fontWeight: '500',
   },
   inputContainer: {
     backgroundColor: CHAT_BG,

@@ -32,7 +32,14 @@ function requireQrCode(request: Request) {
     throw new BadRequestError('QR code is required');
   }
 
-  return qrCode;
+  const normalizedQrCode = qrCode.trim();
+  const bowlCodeMatch = normalizedQrCode.match(/BOWL-[A-Z0-9-]+/i);
+
+  if (bowlCodeMatch) {
+    return bowlCodeMatch[0].toUpperCase();
+  }
+
+  return normalizedQrCode.toUpperCase();
 }
 
 function requireUserId(request: Request) {

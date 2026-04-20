@@ -17,10 +17,16 @@ import type { StackScreenProps } from '@react-navigation/stack';
 import type { MapStackParamList } from '../types/navigation';
 import type { PaymentMethodRecord } from '../types/domain';
 import { createDonation, type CreateDonationResult } from '../services/donations';
+import { createBowlDonation } from '../services/bowls';
 import { listPaymentMethods } from '../services/paymentMethods';
 import { formatCurrency } from '../utils/formatters';
 
 type PaymentScreenProps = StackScreenProps<MapStackParamList, 'Payment'>;
+
+type PaymentSuccessState = {
+  donationAmount: number;
+  totalAmount: number;
+};
 
 function getCardBackground(brand: string, isSelected: boolean) {
   if (isSelected) {
@@ -43,12 +49,13 @@ function getCardBackground(brand: string, isSelected: boolean) {
 const PaymentScreen = ({ route, navigation }: PaymentScreenProps): React.JSX.Element => {
   const insets = useSafeAreaInsets();
   const { amount } = route.params || { amount: 50 };
+  const bowlId = route.params?.bowlId;
   const preferredSelectedCardId = route.params?.selectedPaymentMethodId;
   const [savedCards, setSavedCards] = useState<PaymentMethodRecord[]>([]);
   const [selectedCard, setSelectedCard] = useState<PaymentMethodRecord | null>(null);
   const [isLoadingCards, setIsLoadingCards] = useState(true);
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
-  const [successResult, setSuccessResult] = useState<CreateDonationResult | null>(null);
+  const [successResult, setSuccessResult] = useState<PaymentSuccessState | null>(null);
   const successOpacity = useRef(new Animated.Value(0)).current;
   const successScale = useRef(new Animated.Value(0.85)).current;
 
@@ -84,10 +91,10 @@ const PaymentScreen = ({ route, navigation }: PaymentScreenProps): React.JSX.Ele
   }, [fetchSavedCards]));
 
   const handleAddNewCard = () => {
-    navigation.navigate('AddPaymentMethod', { amount });
+    navigation.navigate('AddPaymentMethod', { amount, bowlId });
   };
 
-  const showPaymentSuccess = (result: CreateDonationResult) => {
+  const showPaymentSuccess = (result: PaymentSuccessState) => {
     successOpacity.setValue(0);
     successScale.setValue(0.85);
     setSuccessResult(result);
@@ -122,11 +129,27 @@ const PaymentScreen = ({ route, navigation }: PaymentScreenProps): React.JSX.Ele
     setIsProcessingPayment(true);
 
     try {
-      const result = await createDonation({
-        amount,
-        payment_method_id: selectedCard.id,
-      });
-      showPaymentSuccess(result);
+      if (bowlId) {
+        const result = await createBowlDonation(bowlId, {
+          amount,
+          payment_method_id: selectedCard.id,
+        });
+
+        showPaymentSuccess({
+          donationAmount: result.donation.amount,
+          totalAmount: result.donation_summary.user_total_amount,
+        });
+      } else {
+        const result: CreateDonationResult = await createDonation({
+          amount,
+          payment_method_id: selectedCard.id,
+        });
+
+        showPaymentSuccess({
+          donationAmount: result.donation.amount,
+          totalAmount: result.user_summary.total_amount,
+        });
+      }
     } catch {
       Alert.alert('Ödeme alınamadı', 'Ödeme işlemi tamamlanamadı. Lütfen tekrar deneyin.');
     } finally {
@@ -278,10 +301,10 @@ const PaymentScreen = ({ route, navigation }: PaymentScreenProps): React.JSX.Ele
             <Text style={styles.successTitle}>Ödemeniz alındı</Text>
             <Text style={styles.successMessage}>Bağışınız için teşekkür ederiz.</Text>
             <Text style={styles.successAmount}>
-              {formatCurrency(successResult.donation.amount)}
+              {formatCurrency(successResult.donationAmount)}
             </Text>
             <Text style={styles.successSummary}>
-              Toplam bağışınız {formatCurrency(successResult.user_summary.total_amount)}
+              Toplam bağışınız {formatCurrency(successResult.totalAmount)}
             </Text>
             <TouchableOpacity
               style={styles.successButton}

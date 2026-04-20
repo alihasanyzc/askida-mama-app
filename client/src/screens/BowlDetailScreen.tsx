@@ -139,7 +139,10 @@ const BowlDetailScreen = ({ route, navigation }: BowlDetailScreenProps): React.J
     const finalAmount = selectedAmount || parseFloat(customAmount) || 0;
     if (finalAmount > 0) {
       handleCloseDonationModal();
-      navigation.navigate('Payment', { amount: finalAmount });
+      navigation.navigate('Payment', {
+        amount: finalAmount,
+        bowlId: isUuidLike(bowl.id) ? bowl.id : undefined,
+      });
     }
   };
 

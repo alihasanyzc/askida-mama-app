@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -21,6 +21,7 @@ import { listBowls } from '../services/bowls';
 import type { StackScreenProps } from '@react-navigation/stack';
 import type { MapStackParamList } from '../types/navigation';
 import type { BowlRecord } from '../types/domain';
+import type { Region } from 'react-native-maps';
 
 const { width, height } = Dimensions.get('window');
 
@@ -41,6 +42,7 @@ type MapMarker = {
 
 const MapScreen = ({ navigation }: MapScreenProps): React.JSX.Element => {
   const insets = useSafeAreaInsets();
+  const mapRef = useRef<MapView | null>(null);
   const [modalVisible, setModalVisible] = useState(false);
   const [slideAnim] = useState(new Animated.Value(0));
   const [bowlBottomSheetVisible, setBowlBottomSheetVisible] = useState(false);
@@ -48,12 +50,13 @@ const MapScreen = ({ navigation }: MapScreenProps): React.JSX.Element => {
   const [markers, setMarkers] = useState<MapMarker[]>([]);
   const [isLoadingBowls, setIsLoadingBowls] = useState(true);
   
-  const [region, setRegion] = useState({
+  const [initialRegion] = useState({
     latitude: 41.0082,
     longitude: 28.9784,
     latitudeDelta: 0.05,
     longitudeDelta: 0.05,
   });
+  const [mapRegion, setMapRegion] = useState<Region>(initialRegion);
 
   const loadBowls = React.useCallback(async () => {
     try {
@@ -85,11 +88,15 @@ const MapScreen = ({ navigation }: MapScreenProps): React.JSX.Element => {
       setMarkers(nextMarkers);
 
       if (nextMarkers.length > 0) {
-        setRegion((currentRegion) => ({
-          ...currentRegion,
+        const nextRegion = {
           latitude: nextMarkers[0].latitude,
           longitude: nextMarkers[0].longitude,
-        }));
+          latitudeDelta: 0.05,
+          longitudeDelta: 0.05,
+        };
+
+        setMapRegion(nextRegion);
+        mapRef.current?.animateToRegion(nextRegion, 350);
       }
     } catch (error) {
       console.error('Bowls fetch error:', error);
@@ -169,6 +176,18 @@ const MapScreen = ({ navigation }: MapScreenProps): React.JSX.Element => {
     }, 300);
   };
 
+  const handleZoom = (direction: 'in' | 'out') => {
+    const zoomFactor = direction === 'in' ? 0.5 : 2;
+    const nextRegion = {
+      ...mapRegion,
+      latitudeDelta: Math.min(Math.max(mapRegion.latitudeDelta * zoomFactor, 0.0025), 0.8),
+      longitudeDelta: Math.min(Math.max(mapRegion.longitudeDelta * zoomFactor, 0.0025), 0.8),
+    };
+
+    setMapRegion(nextRegion);
+    mapRef.current?.animateToRegion(nextRegion, 200);
+  };
+
   const modalTranslateY = slideAnim.interpolate({
     inputRange: [0, 1],
     outputRange: [600, 0],
@@ -178,14 +197,20 @@ const MapScreen = ({ navigation }: MapScreenProps): React.JSX.Element => {
     <View style={styles.container}>
       {/* Map View */}
       <MapView
+        ref={mapRef}
         style={styles.map}
         provider={Platform.OS === 'ios' ? undefined : PROVIDER_GOOGLE}
         mapType="standard"
-        region={region}
-        onRegionChangeComplete={setRegion}
+        initialRegion={initialRegion}
+        onRegionChangeComplete={setMapRegion}
         showsUserLocation={true}
         showsMyLocationButton={false}
         followsUserLocation={false}
+        zoomEnabled
+        zoomTapEnabled
+        scrollEnabled
+        rotateEnabled
+        pitchEnabled
       >
         {/* Markers */}
         {markers.map((marker) => (
@@ -230,13 +255,22 @@ const MapScreen = ({ navigation }: MapScreenProps): React.JSX.Element => {
         <Ionicons name="qr-code-outline" size={20} color={COLORS.white} />
       </TouchableOpacity>
 
-      <TouchableOpacity
-        style={[styles.refreshButton, { top: insets.top + SPACING.md }]}
-        activeOpacity={0.7}
-        onPress={() => void loadBowls()}
-      >
-        <Ionicons name="refresh" size={20} color={COLORS.white} />
-      </TouchableOpacity>
+      <View style={[styles.zoomControls, { bottom: insets.bottom + 132 }]}>
+        <TouchableOpacity
+          style={[styles.zoomButton, styles.zoomButtonTop]}
+          activeOpacity={0.8}
+          onPress={() => handleZoom('in')}
+        >
+          <Text style={styles.zoomButtonText}>+</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.zoomButton, styles.zoomButtonBottom]}
+          activeOpacity={0.8}
+          onPress={() => handleZoom('out')}
+        >
+          <Text style={styles.zoomButtonText}>−</Text>
+        </TouchableOpacity>
+      </View>
 
       {/* Bağış Yap Button - Bottom */}
       <View style={[styles.bottomContainer, { bottom: insets.bottom }]}>
@@ -370,20 +404,38 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 5,
   },
-  refreshButton: {
+  zoomControls: {
     position: 'absolute',
-    left: SPACING.md,
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: COLORS.secondary,
+    right: SPACING.md,
+    alignItems: 'center',
+  },
+  zoomButton: {
+    width: 40,
+    height: 40,
+    backgroundColor: 'rgba(255, 255, 255, 0.94)',
     justifyContent: 'center',
     alignItems: 'center',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.12,
     shadowRadius: 4,
-    elevation: 5,
+    elevation: 3,
+  },
+  zoomButtonTop: {
+    borderTopLeftRadius: 12,
+    borderTopRightRadius: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(0, 0, 0, 0.08)',
+  },
+  zoomButtonBottom: {
+    borderBottomLeftRadius: 12,
+    borderBottomRightRadius: 12,
+  },
+  zoomButtonText: {
+    fontSize: 22,
+    lineHeight: 24,
+    fontWeight: '600',
+    color: COLORS.secondary,
   },
   loadingOverlay: {
     position: 'absolute',

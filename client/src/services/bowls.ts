@@ -13,6 +13,41 @@ export type UpdateBowlStatusPayload = {
   status: 'full' | 'empty' | 'dolu' | 'boş';
 };
 
+export type CreateBowlDonationResult = {
+  donation: {
+    id: string;
+    user_id: string;
+    bowl_id: string;
+    type: string;
+    amount: number;
+    payment_method: string | null;
+    status: string;
+    created_at: string | null;
+  };
+  donation_summary: {
+    total_amount: number;
+    total_donations_count: number;
+    user_total_amount: number;
+    user_donations_count: number;
+  };
+};
+
+export function normalizeQrCode(value: string): string {
+  const trimmedValue = value.trim();
+
+  if (!trimmedValue) {
+    return '';
+  }
+
+  const bowlCodeMatch = trimmedValue.match(/BOWL-[A-Z0-9-]+/i);
+
+  if (bowlCodeMatch) {
+    return bowlCodeMatch[0].toUpperCase();
+  }
+
+  return trimmedValue.toUpperCase();
+}
+
 export async function listBowls(): Promise<BowlRecord[]> {
   const response = (await api.get<ApiSuccessResponse<BowlRecord[]>>(
     '/bowls',
@@ -30,9 +65,22 @@ export async function getBowlDetail(bowlId: string): Promise<BowlRecord> {
 }
 
 export async function getBowlDetailByQrCode(qrCode: string): Promise<BowlRecord> {
+  const normalizedQrCode = normalizeQrCode(qrCode);
   const response = (await api.get<ApiSuccessResponse<BowlRecord>>(
-    `/bowls/qr/${encodeURIComponent(qrCode)}`,
+    `/bowls/qr/${encodeURIComponent(normalizedQrCode)}`,
   )) as unknown as ApiSuccessResponse<BowlRecord>;
+
+  return response.data;
+}
+
+export async function createBowlDonation(
+  bowlId: string,
+  payload: { amount: number; payment_method_id: string },
+): Promise<CreateBowlDonationResult> {
+  const response = (await api.post<ApiSuccessResponse<CreateBowlDonationResult>>(
+    `/bowls/${bowlId}/donations`,
+    payload,
+  )) as unknown as ApiSuccessResponse<CreateBowlDonationResult>;
 
   return response.data;
 }

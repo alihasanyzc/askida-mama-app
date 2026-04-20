@@ -15,14 +15,10 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { StackScreenProps } from '@react-navigation/stack';
 
 import { COLORS, FONT_SIZES, SPACING } from '../constants';
-import { getBowlDetailByQrCode } from '../services/bowls';
+import { getBowlDetailByQrCode, normalizeQrCode } from '../services/bowls';
 import type { MapStackParamList } from '../types/navigation';
 
 type QRScannerScreenProps = StackScreenProps<MapStackParamList, 'QRScanner'>;
-
-function normalizeQrCode(value: string) {
-  return value.trim();
-}
 
 const QRScannerScreen = ({ navigation }: QRScannerScreenProps): React.JSX.Element => {
   const insets = useSafeAreaInsets();
@@ -92,7 +88,7 @@ const QRScannerScreen = ({ navigation }: QRScannerScreenProps): React.JSX.Elemen
             </View>
 
             <Text style={styles.instructionText}>
-              QR kod verisini girin, ekran bowl bilgisini backend&apos;den acsin.
+              QR kod verisini girin. Ornek format: BOWL-9F80C8CE
             </Text>
           </View>
 
@@ -100,7 +96,7 @@ const QRScannerScreen = ({ navigation }: QRScannerScreenProps): React.JSX.Elemen
             <Text style={styles.label}>QR Kod</Text>
             <TextInput
               style={styles.input}
-              placeholder="Orn: BOWL-QR-0001"
+              placeholder="Orn: BOWL-9F80C8CE"
               placeholderTextColor="#8C8C8C"
               value={qrCode}
               onChangeText={(value) => {
